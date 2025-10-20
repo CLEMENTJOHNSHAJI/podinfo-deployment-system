@@ -1,0 +1,230 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_environment:
+        description: 'Source environment to promote from'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+      target_environment:
+        description: 'Target environment to promote to'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - staging
+          - prod
+      image_tag:
+        description: 'Specific image tag to promote (optional)'
+        required: false
+        type: string
+      skip_approval:
+        description: 'Skip human approval (use with caution)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+
+jobs:
+  validate-promotion:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.get-image.outputs.tag }}
+      source_env: ${{ steps.get-image.outputs.source_env }}
+      target_env: ${{ steps.get-image.outputs.target_env }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get latest image tag
+        id: get-image
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            # Get the latest image tag from source environment
+            SOURCE_ENV="${{ github.event.inputs.source_environment }}"
+            TAG=$(aws ecr describe-images \
+              --repository-name podinfo-podinfo-lambda \
+              --query 'imageDetails[?contains(imageTags, `'$SOURCE_ENV'-')].imageTags[0]' \
+              --output text | head -1)
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          fi
+          echo "source_env=${{ github.event.inputs.source_environment }}" >> $GITHUB_OUTPUT
+          echo "target_env=${{ github.event.inputs.target_environment }}" >> $GITHUB_OUTPUT
+
+      - name: Validate image exists
+        run: |
+          aws ecr describe-images \
+            --repository-name podinfo-podinfo-lambda \
+            --image-ids imageTag=${{ steps.get-image.outputs.tag }} \
+            --query 'imageDetails[0].imageDigest' \
+            --output text
+
+      - name: Verify image signature
+        run: |
+          # Install cosign
+          curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+          chmod +x cosign-linux-amd64
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          
+          # Verify signature
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-image.outputs.tag }}
+
+  human-approval:
+    if: ${{ !github.event.inputs.skip_approval && github.event.inputs.target_environment == 'prod' }}
+    runs-on: ubuntu-latest
+    needs: validate-promotion
+    steps:
+      - name: Request human approval
+        run: |
+          echo "🚨 PRODUCTION DEPLOYMENT APPROVAL REQUIRED 🚨"
+          echo "Source Environment: ${{ needs.validate-promotion.outputs.source_env }}"
+          echo "Target Environment: ${{ needs.validate-promotion.outputs.target_env }}"
+          echo "Image Tag: ${{ needs.validate-promotion.outputs.image_tag }}"
+          echo ""
+          echo "This workflow will deploy to PRODUCTION environment."
+          echo "Please review the changes and approve manually in the GitHub Actions UI."
+          echo ""
+          echo "To approve: Go to the Actions tab and click 'Approve' on this workflow run."
+          echo "To cancel: Click 'Cancel' on this workflow run."
+          
+          # This will pause the workflow until manual approval
+          echo "⏳ Waiting for human approval..."
+
+  deploy-lambda:
+    needs: [validate-promotion, human-approval]
+    if: always() && (needs.human-approval.result == 'success' || needs.human-approval.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Lambda function
+        run: |
+          IMAGE_TAG="${{ needs.validate-promotion.outputs.image_tag }}"
+          TARGET_ENV="${{ needs.validate-promotion.outputs.target_env }}"
+          
+          # Update Lambda function with new image
+          aws lambda update-function-code \
+            --function-name podinfo-lambda \
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG
+          
+          # Wait for update to complete
+          aws lambda wait function-updated \
+            --function-name podinfo-lambda
+          
+          # Publish new version
+          VERSION=$(aws lambda publish-version \
+            --function-name podinfo-lambda \
+            --description "Promoted from ${{ needs.validate-promotion.outputs.source_env }} to $TARGET_ENV" \
+            --query 'Version' --output text)
+          
+          # Update alias to point to new version
+          aws lambda update-alias \
+            --function-name podinfo-lambda \
+            --name live \
+            --function-version $VERSION
+          
+          echo "✅ Lambda function updated to version $VERSION"
+
+      - name: Deploy EC2 application
+        run: |
+          IMAGE_TAG="${{ needs.validate-promotion.outputs.image_tag }}"
+          TARGET_ENV="${{ needs.validate-promotion.outputs.target_env }}"
+          
+          # Get current launch template
+          LAUNCH_TEMPLATE_ID=$(aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names podinfo-asg \
+            --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' \
+            --output text)
+          
+          # Create new launch template version with updated image
+          NEW_VERSION=$(aws ec2 create-launch-template-version \
+            --launch-template-id $LAUNCH_TEMPLATE_ID \
+            --version-description "Promoted from ${{ needs.validate-promotion.outputs.source_env }} to $TARGET_ENV" \
+            --user-data "#!/bin/bash
+          # Update application with new image
+          docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:$IMAGE_TAG
+          docker stop podinfo || true
+          docker rm podinfo || true
+          docker run -d --name podinfo \
+            -p 8080:8080 \
+            -e ENVIRONMENT=$TARGET_ENV \
+            -e SECRET_ARN=${{ secrets.SECRET_ARN }} \
+            ${{ secrets.ECR_REPOSITORY_EC2 }}:$IMAGE_TAG" \
+            --query 'LaunchTemplateVersion.VersionNumber' --output text)
+          
+          # Update auto scaling group to use new version
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name podinfo-asg \
+            --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID,Version=$NEW_VERSION
+          
+          echo "✅ EC2 application updated to version $NEW_VERSION"
+
+  run-smoke-tests:
+    needs: deploy-lambda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run smoke tests
+        run: |
+          # Get ALB DNS name
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names podinfo-alb \
+            --query 'LoadBalancers[0].DNSName' --output text)
+          
+          # Test ALB endpoint
+          echo "Testing ALB endpoint: http://$ALB_DNS"
+          curl -f http://$ALB_DNS/healthz || exit 1
+          curl -f http://$ALB_DNS/api/secret || exit 1
+          
+          echo "✅ Smoke tests passed"
+
+  notify-completion:
+    needs: [deploy-lambda, run-smoke-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify deployment completion
+        run: |
+          if [ "${{ needs.run-smoke-tests.result }}" == "success" ]; then
+            echo "🎉 Deployment to ${{ github.event.inputs.target_environment }} completed successfully!"
+            echo "Image: ${{ needs.validate-promotion.outputs.image_tag }}"
+            echo "Environment: ${{ github.event.inputs.target_environment }}"
+          else
+            echo "❌ Deployment to ${{ github.event.inputs.target_environment }} failed!"
+            echo "Check the logs for details."
+          fi

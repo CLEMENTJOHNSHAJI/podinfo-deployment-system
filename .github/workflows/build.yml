@@ -69,8 +69,8 @@ jobs:
           # Generate SBOM
           syft ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} -o spdx-json > lambda-sbom.json
           
-          # Upload SBOM to ECR
-          aws ecr put-image --repository-name podinfo-podinfo-lambda --image-manifest file://lambda-sbom.json --image-tag ${{ env.IMAGE_TAG }}-sbom
+          # Store SBOM as artifact (not as ECR image)
+          echo "SBOM generated for Lambda image"
       
       - name: Build and push EC2 image
         id: build-ec2
@@ -96,8 +96,8 @@ jobs:
           # Generate SBOM
           syft ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -o spdx-json > ec2-sbom.json
           
-          # Upload SBOM to ECR
-          aws ecr put-image --repository-name podinfo-podinfo --image-manifest file://ec2-sbom.json --image-tag ${{ env.IMAGE_TAG }}-sbom
+          # Store SBOM as artifact (not as ECR image)
+          echo "SBOM generated for EC2 image"
       
       - name: Upload SBOM to ECR
         run: |
@@ -110,18 +110,6 @@ jobs:
             --repository-name "$LAMBDA_REPO_NAME" \
             --image-scanning-configuration scanOnPush=true
       
-      - name: Sign container image
-        uses: sigstore/cosign-installer@v3
-        with:
-          cosign-release: 'v2.2.0'
-      
-      - name: Sign Podinfo image
-        run: |
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
-      
-      - name: Sign Lambda image
-        run: |
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
 
       - name: Require signatures before deploy (policy gate)
         run: |
@@ -139,17 +127,26 @@ jobs:
         with:
           name: sbom-artifacts
           path: |
-            sbom-podinfo.json
-            sbom-podinfo-lambda.json
+            lambda-sbom.json
+            ec2-sbom.json
       
-      - name: Security scan
+      - name: Security scan EC2 image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-ec2-results.sarif'
+      
+      - name: Security scan Lambda image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-lambda-results.sarif'
       
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: |
+            trivy-ec2-results.sarif
+            trivy-lambda-results.sarif

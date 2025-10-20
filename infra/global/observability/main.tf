@@ -20,91 +20,155 @@ resource "aws_cloudwatch_dashboard" "main" {
   
   dashboard_body = jsonencode({
     widgets = [
+      # System Overview
+      {
+        type   = "text"
+        x      = 0
+        y      = 0
+        width  = 24
+        height = 2
+        properties = {
+          markdown = "# Podinfo Multi-Target Deployment Dashboard\n**Environment:** ${var.environment} | **Region:** ${data.aws_region.current.name} | **Account:** ${data.aws_caller_identity.current.account_id}"
+        }
+      },
+      # Lambda Metrics
       {
         type   = "metric"
         x      = 0
-        y      = 0
+        y      = 2
         width  = 12
         height = 6
         properties = {
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", "${var.name_prefix}-lambda"],
             ["AWS/Lambda", "Errors", "FunctionName", "${var.name_prefix}-lambda"],
-            ["AWS/Lambda", "Duration", "FunctionName", "${var.name_prefix}-lambda"]
+            ["AWS/Lambda", "Duration", "FunctionName", "${var.name_prefix}-lambda"],
+            ["AWS/Lambda", "Throttles", "FunctionName", "${var.name_prefix}-lambda"]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
           title   = "Lambda Metrics"
           period  = 300
+          stat    = "Sum"
         }
       },
+      # ALB Metrics
       {
         type   = "metric"
         x      = 12
-        y      = 0
+        y      = 2
         width  = 12
         height = 6
         properties = {
           metrics = [
             ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${var.name_prefix}-alb"],
             ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${var.name_prefix}-alb"],
-            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${var.name_prefix}-alb"]
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${var.name_prefix}-alb"],
+            ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "LoadBalancer", "${var.name_prefix}-alb"]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
           title   = "ALB Metrics"
           period  = 300
+          stat    = "Sum"
         }
       },
+      # EC2 Metrics
       {
         type   = "metric"
         x      = 0
-        y      = 6
+        y      = 8
         width  = 12
         height = 6
         properties = {
           metrics = [
-            ["AWS/EC2", "CPUUtilization", "InstanceId", "${var.name_prefix}-*"],
-            ["AWS/EC2", "NetworkIn", "InstanceId", "${var.name_prefix}-*"],
-            ["AWS/EC2", "NetworkOut", "InstanceId", "${var.name_prefix}-*"]
+            ["AWS/EC2", "CPUUtilization", "InstanceId", "i-*"],
+            ["AWS/EC2", "NetworkIn", "InstanceId", "i-*"],
+            ["AWS/EC2", "NetworkOut", "InstanceId", "i-*"]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
           title   = "EC2 Metrics"
           period  = 300
+          stat    = "Average"
         }
       },
+      # Application Health
       {
         type   = "metric"
         x      = 12
-        y      = 6
+        y      = 8
         width  = 12
         height = 6
         properties = {
           metrics = [
-            ["AWS/CodeDeploy", "DeploymentFailures", "ApplicationName", "${var.name_prefix}-*"],
-            ["AWS/CodeDeploy", "DeploymentSuccesses", "ApplicationName", "${var.name_prefix}-*"]
+            ["Podinfo/Application", "ApplicationHealth", "Environment", "${var.environment}"],
+            ["Podinfo/Application", "RequestDuration", "Environment", "${var.environment}"],
+            ["Podinfo/Application", "RequestCount", "Environment", "${var.environment}"]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
-          title   = "CodeDeploy Metrics"
+          title   = "Application Health"
           period  = 300
+          stat    = "Average"
         }
       },
+      # Blue/Green Deployment Status
+      {
+        type   = "metric"
+        x      = 0
+        y      = 14
+        width  = 24
+        height = 4
+        properties = {
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${var.name_prefix}-blue-tg"],
+            ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", "${var.name_prefix}-green-tg"],
+            ["AWS/ApplicationELB", "RequestCount", "TargetGroup", "${var.name_prefix}-blue-tg"],
+            ["AWS/ApplicationELB", "RequestCount", "TargetGroup", "${var.name_prefix}-green-tg"]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Blue/Green Deployment Status"
+          period  = 300
+          stat    = "Average"
+        }
+      },
+      # Secrets Rotation Status
+      {
+        type   = "metric"
+        x      = 0
+        y      = 18
+        width  = 12
+        height = 4
+        properties = {
+          metrics = [
+            ["AWS/SecretsManager", "SecretRotation", "SecretName", "${var.name_prefix}-app-secret"]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Secrets Rotation"
+          period  = 300
+          stat    = "Sum"
+        }
+      },
+      # Correlation ID Tracking
       {
         type   = "log"
-        x      = 0
-        y      = 12
-        width  = 24
-        height = 6
+        x      = 12
+        y      = 18
+        width  = 12
+        height = 4
         properties = {
-          query   = "SOURCE '/aws/lambda/${var.name_prefix}-lambda' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          query   = "SOURCE '/aws/lambda/${var.name_prefix}-lambda' | fields @timestamp, @message | filter @message like /correlation_id/ | sort @timestamp desc | limit 20"
           region  = data.aws_region.current.name
-          title   = "Lambda Logs"
+          title   = "Recent Correlation IDs"
           view    = "table"
         }
       }
