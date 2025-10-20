@@ -36,12 +36,19 @@ jobs:
         id: get-digests
         run: |
           # Get the image digests from the build workflow outputs
-          # For now, we'll use the commit SHA as the tag since that's what the build workflow uses
+          # The build workflow uses github.sha as the tag
           echo "ec2_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "lambda_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+          
+          # Verify the images exist in ECR
+          echo "Checking if images exist in ECR..."
+          aws ecr describe-images --repository-name podinfo-podinfo --image-ids imageTag=${{ github.sha }} || echo "EC2 image not found"
+          aws ecr describe-images --repository-name podinfo-podinfo-lambda --image-ids imageTag=${{ github.sha }} || echo "Lambda image not found"
       
       - name: Deploy Lambda function
         run: |
+          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}"
+          
           # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
             echo "Lambda function exists, updating with container image..."
@@ -65,6 +72,10 @@ jobs:
             echo "Waiting for Lambda function to be ready..."
             aws lambda wait function-active --function-name podinfo-lambda
           fi
+          
+          # Verify the deployment
+          echo "Verifying Lambda function deployment..."
+          aws lambda get-function --function-name podinfo-lambda --query 'Configuration.{State:State,LastUpdateStatus:LastUpdateStatus,CodeSize:CodeSize,ImageUri:Code.ImageUri}' --output table
         
           aws lambda publish-version \
             --function-name podinfo-lambda \
