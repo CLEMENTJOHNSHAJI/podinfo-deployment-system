@@ -48,6 +48,9 @@ jobs:
             aws lambda update-function-code \
               --function-name podinfo-lambda \
               --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+            # Wait for update to complete
+            echo "Waiting for Lambda function update to complete..."
+            aws lambda wait function-updated --function-name podinfo-lambda
           else
             echo "Lambda function does not exist, creating with container image..."
             aws lambda create-function \
@@ -58,11 +61,14 @@ jobs:
               --timeout 30 \
               --memory-size 512 \
               --environment Variables='{ENVIRONMENT=dev,LOG_LEVEL=INFO}'
+            # Wait for function to be ready
+            echo "Waiting for Lambda function to be ready..."
+            aws lambda wait function-active --function-name podinfo-lambda
           fi
-          
-          aws lambda publish-version \
-            --function-name podinfo-lambda \
-            --description "Deployment ${{ github.sha }}"
+        
+        aws lambda publish-version \
+          --function-name podinfo-lambda \
+          --description "Deployment ${{ github.sha }}"
       
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -195,6 +201,9 @@ jobs:
             aws lambda update-function-code \
               --function-name podinfo-lambda \
               --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+            # Wait for update to complete
+            echo "Waiting for Lambda function update to complete..."
+            aws lambda wait function-updated --function-name podinfo-lambda
           else
             echo "Lambda function does not exist, creating with container image..."
             aws lambda create-function \
@@ -205,11 +214,14 @@ jobs:
               --timeout 30 \
               --memory-size 512 \
               --environment Variables='{ENVIRONMENT=prod,LOG_LEVEL=INFO}'
+            # Wait for function to be ready
+            echo "Waiting for Lambda function to be ready..."
+            aws lambda wait function-active --function-name podinfo-lambda
           fi
-          
-          aws lambda publish-version \
-            --function-name podinfo-lambda \
-            --description "Production deployment ${{ github.sha }}"
+        
+        aws lambda publish-version \
+          --function-name podinfo-lambda \
+          --description "Production deployment ${{ github.sha }}"
       
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
