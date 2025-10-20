@@ -47,7 +47,6 @@ jobs:
           tags: |
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
-          outputs: type=image,name=${{ secrets.ECR_REPOSITORY_LAMBDA }},push-by-digest=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
@@ -61,7 +60,6 @@ jobs:
           tags: |
             ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
             ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
-          outputs: type=image,name=${{ secrets.ECR_REPOSITORY_EC2 }},push-by-digest=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
