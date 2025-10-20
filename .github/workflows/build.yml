@@ -103,8 +103,14 @@ jobs:
 
       - name: Require signatures before deploy (policy gate)
         run: |
-          cosign verify ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
-          cosign verify ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
@@ -225,11 +231,17 @@ jobs:
       
       - name: Verify Podinfo image signature
         run: |
-          cosign verify ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ needs.build-and-sign.outputs.ec2_digest || steps.build-ec2.outputs.digest }}
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ needs.build-and-sign.outputs.ec2_digest || steps.build-ec2.outputs.digest }}
       
       - name: Verify Lambda image signature
         run: |
-          cosign verify ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ needs.build-and-sign.outputs.lambda_digest || steps.build-lambda.outputs.digest }}
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ needs.build-and-sign.outputs.lambda_digest || steps.build-lambda.outputs.digest }}
       
       - name: Deploy Lambda function (by digest)
         run: |
