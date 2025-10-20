@@ -168,7 +168,13 @@ resource "aws_iam_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -181,7 +187,10 @@ resource "aws_iam_policy" "github_actions" {
           "ecr:BatchDeleteImage",
           "ecr:DescribeRepositories",
           "ecr:DescribeImages",
-          "ecr:BatchGetImage"
+          "ecr:BatchGetImage",
+          "ecr:PutImageScanningConfiguration",
+          "ecr:PutLifecyclePolicy",
+          "ecr:GetLifecyclePolicy"
         ]
         Resource = [
           for repo in aws_ecr_repository.repositories : repo.arn

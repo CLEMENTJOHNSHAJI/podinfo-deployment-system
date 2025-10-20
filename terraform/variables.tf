@@ -24,6 +24,18 @@ variable "github_branch" {
   default     = "main"
 }
 
+variable "enable_codedeploy" {
+  description = "Enable CodeDeploy blue/green resources"
+  type        = bool
+  default     = false
+}
+
+variable "enable_secrets_rotation" {
+  description = "Enable Secrets Manager rotation"
+  type        = bool
+  default     = false
+}
+
 variable "aws_region" {
   description = "AWS region for deployment"
   type        = string

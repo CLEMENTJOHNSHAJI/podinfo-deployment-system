@@ -10,6 +10,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
   IMAGE_TAG: ${{ github.sha }}
+  ENABLE_CODEDEPLOY: ${{ secrets.ENABLE_CODEDEPLOY || 'false' }}
 
 jobs:
   build-and-sign:
@@ -37,6 +38,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Build and push Lambda image
+        id: build-lambda
         uses: docker/build-push-action@v5
         with:
           context: ./app
@@ -45,10 +47,12 @@ jobs:
           tags: |
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
+          outputs: type=image,name=${{ secrets.ECR_REPOSITORY_LAMBDA }},push-by-digest=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
       - name: Build and push EC2 image
+        id: build-ec2
         uses: docker/build-push-action@v5
         with:
           context: ./app
@@ -57,6 +61,7 @@ jobs:
           tags: |
             ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
             ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
+          outputs: type=image,name=${{ secrets.ECR_REPOSITORY_EC2 }},push-by-digest=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
@@ -91,11 +96,16 @@ jobs:
       
       - name: Sign Podinfo image
         run: |
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
       
       - name: Sign Lambda image
         run: |
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
+
+      - name: Require signatures before deploy (policy gate)
+        run: |
+          cosign verify ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
+          cosign verify ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
@@ -136,17 +146,18 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Deploy Lambda function
+      - name: Deploy Lambda function (by digest)
         run: |
           aws lambda update-function-code \
             --function-name podinfo-lambda \
-            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ needs.build-and-sign.outputs.lambda_digest || steps.build-lambda.outputs.digest }}
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
             --description "Deployment ${{ github.sha }}"
       
       - name: Deploy Lambda with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
           aws codedeploy create-deployment \
             --application-name podinfo-lambda-deploy \
@@ -155,6 +166,7 @@ jobs:
             --description "Deploy ${{ github.sha }} to Lambda"
       
       - name: Deploy EC2 with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
           aws codedeploy create-deployment \
             --application-name podinfo-ec2-deploy \
@@ -214,23 +226,24 @@ jobs:
       
       - name: Verify Podinfo image signature
         run: |
-          cosign verify ${{ env.ECR_REGISTRY }}/podinfo:${{ env.IMAGE_TAG }}
+          cosign verify ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ needs.build-and-sign.outputs.ec2_digest || steps.build-ec2.outputs.digest }}
       
       - name: Verify Lambda image signature
         run: |
-          cosign verify ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
+          cosign verify ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ needs.build-and-sign.outputs.lambda_digest || steps.build-lambda.outputs.digest }}
       
-      - name: Deploy Lambda function
+      - name: Deploy Lambda function (by digest)
         run: |
           aws lambda update-function-code \
             --function-name podinfo-lambda \
-            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ needs.build-and-sign.outputs.lambda_digest || steps.build-lambda.outputs.digest }}
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
             --description "Production deployment ${{ github.sha }}"
       
       - name: Deploy Lambda with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
           aws codedeploy create-deployment \
             --application-name podinfo-lambda-deploy \
@@ -239,6 +252,7 @@ jobs:
             --description "Production deploy ${{ github.sha }} to Lambda"
       
       - name: Deploy EC2 with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
           aws codedeploy create-deployment \
             --application-name podinfo-ec2-deploy \
