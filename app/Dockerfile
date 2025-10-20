@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Podinfo application
 # Stage 1: Build
-FROM golang:1.21-alpine AS builder
+FROM public.ecr.aws/docker/library/golang:1.21-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o podinfo .
 
 # Stage 2: Runtime
-FROM alpine:3.18
+FROM public.ecr.aws/docker/library/alpine:3.18
 
 # Create non-root user
 RUN addgroup -g 1001 -S podinfo && \
