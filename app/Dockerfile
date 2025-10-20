@@ -7,10 +7,10 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy go.mod only (go.sum will be generated during download)
+COPY go.mod ./
 
-# Download dependencies
+# Download dependencies (this will generate go.sum)
 RUN go mod download
 
 # Copy source code
