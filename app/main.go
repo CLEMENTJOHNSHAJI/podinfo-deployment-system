@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,7 +28,21 @@ type Config struct {
 	Version     string
 	BuildTime   string
 	Commit      string
+	SecretARN   string
 }
+
+// Secrets structure
+type Secrets struct {
+	SuperSecretToken string `json:"SUPER_SECRET_TOKEN"`
+	DatabaseURL      string `json:"DATABASE_URL"`
+	APIKey          string `json:"API_KEY"`
+}
+
+// Global variables
+var (
+	config  Config
+	secrets Secrets
+)
 
 // Application metrics
 var (
@@ -59,6 +78,57 @@ type App struct {
 	router *mux.Router
 }
 
+// Load secrets from AWS Secrets Manager
+func loadSecrets(secretARN string) (*Secrets, error) {
+	if secretARN == "" {
+		// Return default secrets for local development
+		return &Secrets{
+			SuperSecretToken: "dev-token-12345",
+			DatabaseURL:      "postgresql://dev:dev@localhost:5432/podinfo",
+			APIKey:          "dev-api-key",
+		}, nil
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-west-2"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AWS session: %v", err)
+	}
+
+	svc := secretsmanager.New(sess)
+	result, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretARN),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret: %v", err)
+	}
+
+	var secrets Secrets
+	if err := json.Unmarshal([]byte(*result.SecretString), &secrets); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal secret: %v", err)
+	}
+
+	return &secrets, nil
+}
+
+// Correlation ID middleware
+func correlationIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		correlationID := r.Header.Get("X-Correlation-ID")
+		if correlationID == "" {
+			correlationID = uuid.New().String()
+		}
+		
+		// Add correlation ID to response headers
+		w.Header().Set("X-Correlation-ID", correlationID)
+		
+		// Add to request context
+		ctx := context.WithValue(r.Context(), "correlationID", correlationID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // Initialize application
 func NewApp() *App {
 	config := &Config{
@@ -68,6 +138,18 @@ func NewApp() *App {
 		Version:     getEnv("VERSION", "1.0.0"),
 		BuildTime:   getEnv("BUILD_TIME", time.Now().Format(time.RFC3339)),
 		Commit:      getEnv("COMMIT", "unknown"),
+		SecretARN:   getEnv("SECRET_ARN", ""),
+	}
+
+	// Load secrets
+	secrets, err := loadSecrets(config.SecretARN)
+	if err != nil {
+		log.Printf("Warning: Failed to load secrets: %v", err)
+		secrets = &Secrets{
+			SuperSecretToken: "fallback-token",
+			DatabaseURL:      "postgresql://fallback:fallback@localhost:5432/podinfo",
+			APIKey:          "fallback-api-key",
+		}
 	}
 
 	// Register Prometheus metrics
@@ -87,6 +169,7 @@ func NewApp() *App {
 // Setup routes
 func (a *App) setupRoutes() {
 	// Middleware
+	a.router.Use(correlationIDMiddleware)
 	a.router.Use(a.loggingMiddleware)
 	a.router.Use(a.metricsMiddleware)
 	a.router.Use(a.corsMiddleware)
@@ -248,12 +331,23 @@ func (a *App) dataHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) secretHandler(w http.ResponseWriter, r *http.Request) {
-	// This would typically fetch from AWS Secrets Manager
-	// For demo purposes, we'll return a mock response
-	secret := map[string]string{
-		"message":   "Secret data retrieved successfully",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"note":      "In production, this would fetch from AWS Secrets Manager",
+	// Get correlation ID from context
+	correlationID := r.Context().Value("correlationID")
+	if correlationID == nil {
+		correlationID = "unknown"
+	}
+
+	// Return secret status without exposing actual values
+	secret := map[string]interface{}{
+		"message":        "Secret data retrieved successfully",
+		"timestamp":      time.Now().Format(time.RFC3339),
+		"correlation_id": correlationID,
+		"secret_status": map[string]interface{}{
+			"super_secret_token_loaded": secrets.SuperSecretToken != "",
+			"database_url_loaded":      secrets.DatabaseURL != "",
+			"api_key_loaded":          secrets.APIKey != "",
+		},
+		"environment": a.config.Environment,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

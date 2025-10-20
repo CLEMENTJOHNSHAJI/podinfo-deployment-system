@@ -76,6 +76,15 @@ module "global" {
   kms_key_rotation = true
 }
 
+# Secrets Management Module
+module "secrets" {
+  source = "./secrets"
+  
+  name_prefix  = local.name_prefix
+  environment  = var.environment
+  enable_rotation = var.enable_secrets_rotation
+}
+
 # Lambda Infrastructure Module
 module "lambda" {
   source = "./lambda"
@@ -245,6 +254,16 @@ data "aws_ami" "amazon_linux" {
 output "ecr_repository_urls" {
   description = "ECR repository URLs"
   value       = module.global.ecr_repository_urls
+}
+
+output "secret_arn" {
+  description = "ARN of the application secret"
+  value       = module.secrets.secret_arn
+}
+
+output "secret_name" {
+  description = "Name of the application secret"
+  value       = module.secrets.secret_name
 }
 
 output "lambda_function_url" {

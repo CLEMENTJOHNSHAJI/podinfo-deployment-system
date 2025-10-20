@@ -51,6 +51,27 @@ jobs:
           DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
+      - name: Sign Lambda image
+        run: |
+          # Install cosign
+          curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
+          chmod +x cosign-linux-amd64
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+          
+          # Sign the image
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+      
+      - name: Generate SBOM for Lambda image
+        run: |
+          # Install syft
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Generate SBOM
+          syft ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} -o spdx-json > lambda-sbom.json
+          
+          # Upload SBOM to ECR
+          aws ecr put-image --repository-name podinfo-podinfo-lambda --image-manifest file://lambda-sbom.json --image-tag ${{ env.IMAGE_TAG }}-sbom
+      
       - name: Build and push EC2 image
         id: build-ec2
         run: |
@@ -65,19 +86,18 @@ jobs:
           DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
-          format: spdx-json
-          output-file: sbom-podinfo.json
+      - name: Sign EC2 image
+        run: |
+          # Sign the image
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
       
-      - name: Generate SBOM for Lambda
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
-          format: spdx-json
-          output-file: sbom-podinfo-lambda.json
+      - name: Generate SBOM for EC2 image
+        run: |
+          # Generate SBOM
+          syft ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -o spdx-json > ec2-sbom.json
+          
+          # Upload SBOM to ECR
+          aws ecr put-image --repository-name podinfo-podinfo --image-manifest file://ec2-sbom.json --image-tag ${{ env.IMAGE_TAG }}-sbom
       
       - name: Upload SBOM to ECR
         run: |

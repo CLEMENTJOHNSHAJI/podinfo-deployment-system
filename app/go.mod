@@ -3,6 +3,8 @@ module podinfo
 go 1.21
 
 require (
+	github.com/aws/aws-sdk-go v1.45.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.17.0
 )
