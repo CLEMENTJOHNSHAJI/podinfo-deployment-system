@@ -42,9 +42,23 @@ jobs:
       
       - name: Deploy Lambda function
         run: |
-          aws lambda update-function-code \
-            --function-name podinfo-lambda \
-            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          # Check if Lambda function exists
+          if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
+            echo "Lambda function exists, updating with container image..."
+            aws lambda update-function-code \
+              --function-name podinfo-lambda \
+              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          else
+            echo "Lambda function does not exist, creating with container image..."
+            aws lambda create-function \
+              --function-name podinfo-lambda \
+              --package-type Image \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
+              --timeout 30 \
+              --memory-size 512 \
+              --environment Variables='{ENVIRONMENT=dev,LOG_LEVEL=INFO}'
+          fi
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
@@ -175,9 +189,23 @@ jobs:
       
       - name: Deploy Lambda function
         run: |
-          aws lambda update-function-code \
-            --function-name podinfo-lambda \
-            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          # Check if Lambda function exists
+          if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
+            echo "Lambda function exists, updating with container image..."
+            aws lambda update-function-code \
+              --function-name podinfo-lambda \
+              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          else
+            echo "Lambda function does not exist, creating with container image..."
+            aws lambda create-function \
+              --function-name podinfo-lambda \
+              --package-type Image \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
+              --timeout 30 \
+              --memory-size 512 \
+              --environment Variables='{ENVIRONMENT=prod,LOG_LEVEL=INFO}'
+          fi
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
