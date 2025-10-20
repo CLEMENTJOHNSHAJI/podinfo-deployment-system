@@ -53,7 +53,7 @@ jobs:
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
-              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
               --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
               --timeout 30 \
               --memory-size 512 \
@@ -200,7 +200,7 @@ jobs:
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
-              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
               --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
               --timeout 30 \
               --memory-size 512 \
