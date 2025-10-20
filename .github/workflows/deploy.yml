@@ -1,0 +1,260 @@
+name: Deploy to Dual Targets
+
+on:
+  workflow_run:
+    workflows: ["Build, Sign, and SBOM"]
+    types: [completed]
+    branches: [main, develop]
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
+  IMAGE_TAG: ${{ github.sha }}
+  ENABLE_CODEDEPLOY: ${{ secrets.ENABLE_CODEDEPLOY || 'false' }}
+
+jobs:
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    needs: []
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get image digests
+        id: get-digests
+        run: |
+          # Get the image digests from the build workflow outputs
+          # For now, we'll use the commit SHA as the tag since that's what the build workflow uses
+          echo "ec2_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "lambda_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+      
+      - name: Deploy Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name podinfo-lambda \
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          
+          aws lambda publish-version \
+            --function-name podinfo-lambda \
+            --description "Deployment ${{ github.sha }}"
+      
+      - name: Deploy Lambda with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
+        run: |
+          aws codedeploy create-deployment \
+            --application-name podinfo-lambda-deploy \
+            --deployment-group-name podinfo-lambda-group \
+            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+            --description "Deploy ${{ github.sha }} to Lambda"
+      
+      - name: Deploy EC2 application
+        run: |
+          # Get the latest Auto Scaling Group instances
+          ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
+          
+          # Update the user data to pull the new image
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name $ASG_NAME \
+            --user-data fileb://<(echo "#!/bin/bash
+              # Update system
+              yum update -y
+              
+              # Install Docker
+              yum install -y docker
+              systemctl start docker
+              systemctl enable docker
+              
+              # Install CloudWatch agent
+              yum install -y amazon-cloudwatch-agent
+              
+              # Login to ECR
+              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+              
+              # Pull and run the new image
+              docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+              docker stop podinfo || true
+              docker rm podinfo || true
+              docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+              
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+            " | base64 -w 0)
+      
+      - name: Deploy EC2 with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
+        run: |
+          aws codedeploy create-deployment \
+            --application-name podinfo-ec2-deploy \
+            --deployment-group-name podinfo-ec2-group \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --description "Deploy ${{ github.sha }} to EC2"
+      
+      - name: Wait for deployments
+        run: |
+          echo "Waiting for deployments to complete..."
+          sleep 300
+      
+      - name: Run smoke tests
+        run: |
+          # Test Lambda endpoint
+          LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?Name==`podinfo-api`].ApiEndpoint' --output text)
+          curl -f $LAMBDA_URL/healthz || exit 1
+          
+          # Test ALB endpoint
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names podinfo-alb --query 'LoadBalancers[0].DNSName' --output text)
+          curl -f http://$ALB_DNS/healthz || exit 1
+      
+      - name: Run synthetic tests
+        run: |
+          # Synthetic test script
+          ./scripts/smoke-tests.sh dev
+      
+      - name: Update deployment status
+        run: |
+          echo "Deployment to dev environment completed successfully"
+          echo "Image digest: ${{ env.IMAGE_TAG }}"
+
+  promote-to-prod:
+    name: Promote to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-dev]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Verify image signature
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.2.0'
+      
+      - name: Get image digests
+        id: get-digests
+        run: |
+          # Get the image digests from the build workflow outputs
+          # For now, we'll use the commit SHA as the tag since that's what the build workflow uses
+          echo "ec2_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "lambda_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+      
+      - name: Verify Podinfo image signature
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+      
+      - name: Verify Lambda image signature
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+      
+      - name: Deploy Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name podinfo-lambda \
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+          
+          aws lambda publish-version \
+            --function-name podinfo-lambda \
+            --description "Production deployment ${{ github.sha }}"
+      
+      - name: Deploy Lambda with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
+        run: |
+          aws codedeploy create-deployment \
+            --application-name podinfo-lambda-deploy \
+            --deployment-group-name podinfo-lambda-group \
+            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+            --description "Production deploy ${{ github.sha }} to Lambda"
+      
+      - name: Deploy EC2 application
+        run: |
+          # Get the latest Auto Scaling Group instances
+          ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
+          
+          # Update the user data to pull the new image
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name $ASG_NAME \
+            --user-data fileb://<(echo "#!/bin/bash
+              # Update system
+              yum update -y
+              
+              # Install Docker
+              yum install -y docker
+              systemctl start docker
+              systemctl enable docker
+              
+              # Install CloudWatch agent
+              yum install -y amazon-cloudwatch-agent
+              
+              # Login to ECR
+              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+              
+              # Pull and run the new image
+              docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+              docker stop podinfo || true
+              docker rm podinfo || true
+              docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+              
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+            " | base64 -w 0)
+      
+      - name: Deploy EC2 with CodeDeploy
+        if: env.ENABLE_CODEDEPLOY == 'true'
+        run: |
+          aws codedeploy create-deployment \
+            --application-name podinfo-ec2-deploy \
+            --deployment-group-name podinfo-ec2-group \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --description "Production deploy ${{ github.sha }} to EC2"
+      
+      - name: Wait for deployments
+        run: |
+          echo "Waiting for production deployments to complete..."
+          sleep 300
+      
+      - name: Run production smoke tests
+        run: |
+          # Test Lambda endpoint
+          LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?Name==`podinfo-api`].ApiEndpoint' --output text)
+          curl -f $LAMBDA_URL/healthz || exit 1
+          
+          # Test ALB endpoint
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names podinfo-alb --query 'LoadBalancers[0].DNSName' --output text)
+          curl -f http://$ALB_DNS/healthz || exit 1
+      
+      - name: Run production synthetic tests
+        run: |
+          ./scripts/smoke-tests.sh prod
+      
+      - name: Update production status
+        run: |
+          echo "Production deployment completed successfully"
+          echo "Image digest: ${{ env.IMAGE_TAG }}"
+          echo "Deployment timestamp: $(date -u)"

@@ -1,251 +1,229 @@
 # Podinfo Multi-Target Deployment System
 
-A comprehensive, secure deployment system that builds, signs, and ships the Podinfo container from GitHub Actions (OIDC) into AWS, then rolls it out in parallel to Lambda (container image behind API Gateway) and to a dual-host EC2/ALB stack.
+A production-ready, secure deployment system for the Podinfo application across multiple AWS targets (Lambda and EC2) with blue/green deployments, image signing, and comprehensive monitoring.
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture
 
-- Build & Sign via GitHub Actions (OIDC)
-- AWS ECR registry (images signed; SBOM generated)
-- Targets: Lambda (API Gateway) and EC2 behind ALB
-- Strategy: Blue/Green with canary and rollback (via CodeDeploy)
-- Secrets: AWS Secrets Manager (rotation optional)
-- Observability: CloudWatch dashboards, alarms, logging
-- Promotion: Dev → Prod with immutable digests
+This system deploys Podinfo to:
+- **AWS Lambda** (API Gateway fronted) - Serverless compute
+- **AWS EC2** (ALB fronted) - Traditional compute with Auto Scaling
+
+Both targets support:
+- Blue/green deployments via CodeDeploy
+- Container image signing and verification
+- Comprehensive monitoring and alerting
+- Secrets management with rotation
+- Supply chain security (SBOM, vulnerability scanning)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - AWS CLI configured with appropriate permissions
 - Terraform >= 1.0
-- GitHub repository with Actions enabled
-- Docker (for local development)
+- GitHub repository with OIDC configured
+- Docker (optional - builds run in GitHub Actions)
 
-### 1. Clone and Setup
+### Bootstrap
+
+1. **Clone and configure**:
+   ```bash
+   git clone <your-repo-url>
+   cd podinfo-deployment-system
+   ./scripts/bootstrap.sh
+   ```
+
+2. **Set GitHub secrets** (see `ENVIRONMENT.md` for complete list):
+   ```bash
+   # Required secrets
+   AWS_ROLE_ARN=arn:aws:iam::ACCOUNT:role/podinfo-github-actions-role
+   AWS_REGION=us-west-2
+   AWS_ACCOUNT_ID=123456789012
+   ECR_REPOSITORY_LAMBDA=ACCOUNT.dkr.ecr.REGION.amazonaws.com/podinfo-podinfo-lambda
+   ECR_REPOSITORY_EC2=ACCOUNT.dkr.ecr.REGION.amazonaws.com/podinfo-podinfo
+   REPO_OWNER=your-github-username
+   REPO_NAME=podinfo-deployment-system
+   
+   # Optional features
+   ENABLE_CODEDEPLOY=true
+   ENABLE_SECRETS_ROTATION=false
+   ```
+
+3. **Deploy infrastructure**:
+   ```bash
+   cd infra
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+
+## 🏃 Run
+
+### Development Deployment
+
+Push to `develop` or `main` branch to trigger automatic deployment:
+
 ```bash
-git clone <repository-url>
-cd podinfo-deployment-system
-```
-
-### 2. Configure AWS
-```bash
-# Configure AWS credentials
-aws configure
-
-# Verify access
-aws sts get-caller-identity
-```
-
-### 3. Deploy Infrastructure
-```bash
-# Navigate to Terraform directory
-cd terraform
-
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan
-
-# Deploy infrastructure
-terraform apply
-```
-
-### 4. Configure GitHub OIDC
-In your GitHub repository Settings → Secrets and variables → Actions, set the required AWS and ECR secrets as described in `ENVIRONMENT.md`.
-
-### 5. Deploy Application
-```bash
-# Push to trigger deployment
+git add .
+git commit -m "feat: new feature"
 git push origin main
 ```
 
-## 📁 Directory Structure
+The system will:
+1. Build and sign container images
+2. Generate SBOM and security scans
+3. Deploy to both Lambda and EC2 targets
+4. Run smoke tests and validation
 
-```
-├── terraform/                 # Infrastructure as Code
-│   ├── modules/              # Reusable Terraform modules
-│   │   ├── global/          # Global infrastructure
-│   │   ├── lambda/          # Lambda infrastructure
-│   │   ├── ec2/             # EC2 infrastructure
-│   │   ├── secrets/         # Secrets management
-│   │   └── observability/   # Monitoring and logging
-│   └── main.tf              # Root module
-├── .github/workflows/        # GitHub Actions workflows
-│   └── build.yml            # CI/CD pipeline
-├── app/                     # Podinfo application
-│   ├── main.go              # Go application
-│   ├── go.mod               # Go dependencies
-│   └── Dockerfile           # Container image
-├── docs/                    # Documentation
-│   ├── architecture.svg     # Architecture diagram
-│   └── scalability-design.md # Scalability documentation
-├── scripts/                 # Utility scripts
-│   ├── synthetic-tests.sh   # Test script
-│   └── teardown.sh          # Cleanup script
-├── README.md                # This file
-└── ENVIRONMENT.md           # Environment configuration
+### Manual Deployment
+
+```bash
+# Deploy infrastructure only
+cd infra
+terraform apply
+
+# Run smoke tests
+./scripts/smoke-tests.sh dev
 ```
 
-## ✨ Features
+## 🔄 Promote
 
-### Security & Compliance
-- ✅ OIDC-based authentication (no static keys)
-- ✅ Container image signing with cosign
-- ✅ SBOM generation with syft
-- ✅ Security scanning with Trivy
-- ✅ Secrets rotation with AWS Secrets Manager
-- ✅ Network isolation and least privilege access
+### Development → Production
 
-### Deployment & Operations
-- ✅ Multi-target deployment (Lambda + EC2)
-- ✅ Blue/Green deployments with canary releases
-- ✅ Automatic rollback on health check failures
-- ✅ Immutable artifact promotion (dev → prod)
-- ✅ Comprehensive observability and monitoring
-- ✅ Cost optimization and scaling
+1. **Merge to main branch**:
+   ```bash
+   git checkout main
+   git merge develop
+   git push origin main
+   ```
 
-### Development Experience
-- ✅ GitOps workflow with GitHub Actions
-- ✅ Infrastructure as Code with Terraform
-- ✅ Automated testing and validation
-- ✅ Comprehensive documentation
-- ✅ Easy teardown and cleanup
+2. **Production deployment** requires:
+   - Human approval (GitHub environment protection)
+   - Image signature verification
+   - Comprehensive testing
+
+3. **Monitor promotion**:
+   - Check GitHub Actions for deployment status
+   - Review CloudWatch dashboards
+   - Validate both Lambda and EC2 endpoints
+
+### Rollback
+
+```bash
+# Rollback to previous version
+git revert <commit-hash>
+git push origin main
+
+# Or use CodeDeploy rollback (if enabled)
+aws codedeploy stop-deployment --deployment-id <deployment-id>
+```
+
+## 🧹 Destroy
+
+### Safe Teardown
+
+```bash
+./scripts/teardown.sh
+```
+
+This will:
+- Destroy all AWS resources
+- Clean up local Terraform state
+- Preserve ECR images (manual cleanup required)
+
+### Manual Cleanup
+
+```bash
+cd infra
+terraform destroy
+```
+
+## 📊 Monitoring
+
+- **CloudWatch Dashboard**: `https://console.aws.amazon.com/cloudwatch/home#dashboards:name=podinfo-dashboard`
+- **Lambda URL**: Available in Terraform outputs
+- **ALB URL**: Available in Terraform outputs
 
 ## 🔧 Configuration
 
-### Environment Variables
-- `PORT`: Application port (default: 8080)
-- `ENVIRONMENT`: Environment name (dev/prod)
-- `LOG_LEVEL`: Logging level (info/debug)
-- `VERSION`: Application version
+See `ENVIRONMENT.md` for:
+- Environment variables
+- Secret names and ARNs
+- Version requirements
+- Region configuration
 
-### AWS Resources
-Deployed resources include ECR repositories, a Lambda function (with API Gateway), an ALB with EC2 capacity, CloudWatch monitoring, and Secrets Manager entries. Exact names are output by Terraform at apply time.
+## 📁 Repository Structure
 
-## 📊 Monitoring & Observability
+```
+.github/workflows/     # CI/CD pipelines
+├── build.yml          # Build, sign, SBOM generation
+└── deploy.yml         # Dual target deployment, promotion
 
-### CloudWatch Dashboards
-- **URL**: Available in Terraform output
-- **Metrics**: Lambda, EC2, ALB, and application metrics
-- **Alarms**: Automated rollback triggers
+infra/                 # Terraform infrastructure
+├── global/            # ECR, IAM OIDC, alarms, SNS, dashboards
+├── lambda/            # Lambda-specific resources
+├── ec2/               # EC2-specific resources
+└── main.tf            # Root module
 
-### Health Checks
-- **Lambda**: `/healthz`, `/readyz`
-- **EC2**: `/healthz`, `/readyz`
-- **Endpoints**: `/metrics`, `/version`, `/info`
+scripts/               # Deployment and utility scripts
+├── bootstrap.sh       # Initial setup
+├── smoke-tests.sh     # Health checks and validation
+├── teardown.sh        # Safe resource cleanup
+└── ec2-deployment-hooks.sh  # CodeDeploy hooks
 
-### Logging
-- **Lambda Logs**: `/aws/lambda/podinfo-lambda`
-- **EC2 Logs**: `/aws/podinfo-ec2`
-- **ALB Logs**: `/aws/podinfo-alb`
+docs/                  # Documentation
+└── diagram.svg        # Architecture diagram
 
-## 🚀 Deployment Process
-
-### 1. Build Stage
-- Build and sign container images
-- Generate SBOM with syft
-- Push to ECR with security scanning
-- Verify image signatures
-
-### 2. Deploy Stage (Dev)
-- Deploy to Lambda by digest (canary via CodeDeploy when enabled)
-- Deploy to EC2 with blue/green (CodeDeploy)
-- Run smoke tests and validate health checks
-
-### 3. Promotion (Dev → Prod)
-- Verify image signatures
-- Deploy to production with same digest
-- Run production smoke tests
-- Monitor for issues
-
-## 🔒 Security Features
-
-### Supply Chain Security
-- Image signing with cosign
-- SBOM generation (syft)
-- Vulnerability scanning (Trivy)
-- Policy gate: only signed digests deploy
-
-### Access Control
-- OIDC to AWS (no static keys in CI)
-- IAM least privilege
-- Encryption at rest and VPC isolation
-
-### Secrets Management
-- AWS Secrets Manager for centralized secrets
-- Optional rotation support (enable when needed)
-- Ensure logs do not print secret values
-
-## 📈 Scalability
-
-### Current Implementation
-- Optional Lambda pre-warming (provisioned concurrency)
-- EC2 scaling via ASG and ALB
-
-### Multi-Region Plan (overview)
-- Active/active with Route 53 weighted or failover routing
-- Replicated registries and secrets
-- Health-based failover
-
-## 🛠️ Operations
-
-### Deploy
-```bash
-# Deploy infrastructure
-cd terraform
-terraform apply
-
-# Deploy application
-git push origin main
+app/                   # Application source code
+└── Dockerfile         # Container definition
 ```
 
-### Monitor
-```bash
-# Check deployment status
-aws codedeploy list-deployments --application-name podinfo-lambda-deploy
+## 🛡️ Security Features
 
-# View logs
+- **Image Signing**: Cosign with keyless signing
+- **SBOM Generation**: Software Bill of Materials
+- **Vulnerability Scanning**: Trivy security scans
+- **Secrets Management**: AWS Secrets Manager with rotation
+- **Network Security**: VPC, security groups, ALB
+- **Access Control**: IAM roles with least privilege
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **Deployment fails**: Check CloudWatch logs and GitHub Actions
+2. **Health checks fail**: Verify security groups and ALB configuration
+3. **Image pull errors**: Check ECR permissions and image existence
+4. **CodeDeploy issues**: Verify service-linked roles and permissions
+
+### Debug Commands
+
+```bash
+# Check Lambda function
+aws lambda get-function --function-name podinfo-lambda
+
+# Check ALB health
+aws elbv2 describe-target-health --target-group-arn <target-group-arn>
+
+# View CloudWatch logs
 aws logs tail /aws/lambda/podinfo-lambda --follow
 ```
 
-### Scale
-Use Terraform variables and CI pipeline to adjust capacity (e.g., provisioned concurrency or ASG sizes). Avoid ad-hoc scaling commands unless for incident response.
+## 📈 Scaling
 
-### Teardown
-```bash
-# Destroy all resources
-./scripts/teardown.sh dev
+The system supports:
+- **Lambda**: Provisioned concurrency (configurable)
+- **EC2**: Auto Scaling Groups with custom policies
+- **ALB**: Load balancing across multiple AZs
+- **Monitoring**: CloudWatch alarms and dashboards
 
-# Confirm destruction
-./scripts/teardown.sh dev true
-```
+## 🤝 Contributing
 
-## 🔍 Troubleshooting
-
-### Common Issues
-1. **Deployment Failures**: Check CodeDeploy logs and health checks
-2. **Performance Issues**: Monitor CloudWatch metrics and alarms
-3. **Security Issues**: Review IAM policies and security groups
-4. **Cost Issues**: Monitor AWS Cost Explorer and optimize resources
-
-### Debug Commands
-```bash
-# Check Lambda function status
-aws lambda get-function --function-name podinfo-lambda
-
-# Check ALB target health
-aws elbv2 describe-target-health --target-group-arn <target-group-arn>
-
-# Check CloudWatch alarms
-aws cloudwatch describe-alarms --alarm-names podinfo-lambda-errors
-```
-
-## 📚 Documentation
-
-- **[Architecture Diagram](docs/architecture.svg)**: Visual system architecture
-- **[Scalability Design](docs/scalability-design.md)**: Scaling strategies and implementation
-- **[Environment Config](ENVIRONMENT.md)**: Detailed environment configuration
-- **[API Documentation](app/README.md)**: Application API endpoints
+1. Fork the repository
+2. Create a feature branch
+3. Make changes and test
+4. Submit a pull request
 
 ## 📄 License
-MIT License; see LICENSE for details.
+
+This project is licensed under the MIT License - see the LICENSE file for details.

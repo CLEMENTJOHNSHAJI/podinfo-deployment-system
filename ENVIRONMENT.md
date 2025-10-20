@@ -1,105 +1,171 @@
 # Environment Configuration
 
-This document describes the environment variables, configuration, and deployment settings for the Podinfo deployment system.
+This document describes the environment variables, configuration values, and secret names required for the Podinfo deployment system.
 
-## AWS Configuration
+## 📋 Prerequisites
 
-### Regions
-- **Primary Region**: `us-west-2` (Oregon)
-- **Backup Region**: `us-east-1` (N. Virginia)
+### Required Tools
+- **Terraform**: >= 1.0
+- **AWS CLI**: >= 2.0
+- **Docker**: >= 20.0 (optional - builds run in GitHub Actions)
+- **Git**: >= 2.0
 
-### Account Information
-- **AWS Account ID**: `123456789012` (replace with actual account ID)
-- **GitHub Organization**: `your-org`
-- **GitHub Repository**: `podinfo-deployment-system`
+### AWS Account Requirements
+- AWS Account with billing enabled
+- IAM permissions for resource creation
+- ECR, Lambda, EC2, VPC, CloudWatch, CodeDeploy access
 
-## Infrastructure Components
+## 🌍 Environment Variables
 
-### ECR Repositories
-- **Podinfo (EC2)**: `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo`
-- **Podinfo Lambda**: `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-lambda`
+### Core Configuration
+```bash
+# AWS Configuration
+AWS_REGION=us-west-2
+AWS_ACCOUNT_ID=123456789012
 
-### Lambda Configuration
-- **Function Name**: `podinfo-lambda`
-- **Runtime**: Container Image
-- **Memory**: 512 MB
-- **Timeout**: 30 seconds
-- **API Gateway**: `podinfo-api`
-- **Stage**: `dev` / `prod`
+# GitHub Configuration
+REPO_OWNER=your-github-username
+REPO_NAME=podinfo-deployment-system
+GITHUB_BRANCH=main
 
-### EC2 Configuration
-- **Instance Type**: `t3.medium`
-- **AMI**: Amazon Linux 2
-- **Auto Scaling Group**: `podinfo-asg`
-- **Load Balancer**: `podinfo-alb`
-- **Target Groups**: `podinfo-blue-tg`, `podinfo-green-tg`
-
-### VPC Configuration
-- **CIDR Block**: `10.0.0.0/16`
-- **Public Subnets**: `10.0.1.0/24`, `10.0.2.0/24`
-- **Private Subnets**: `10.0.11.0/24`, `10.0.12.0/24`
-- **Availability Zones**: `us-west-2a`, `us-west-2b`
-
-## Secrets Management
-
-### AWS Secrets Manager
-- **Secret Name**: `podinfo/database`
-  - **Description**: Database connection secrets for Podinfo
-  - **Rotation**: 30 days
-  - **ARN**: `arn:aws:secretsmanager:us-west-2:123456789012:secret:podinfo/database-XXXXXX`
-
-- **Secret Name**: `podinfo/api-keys`
-  - **Description**: API keys for external services
-  - **Rotation**: 90 days
-  - **ARN**: `arn:aws:secretsmanager:us-west-2:123456789012:secret:podinfo/api-keys-XXXXXX`
-
-### Secret Structure
-```json
-{
-  "username": "podinfo-user",
-  "password": "generated-password",
-  "token": "generated-token",
-  "api_key": "generated-api-key"
-}
+# Application Configuration
+ENVIRONMENT=dev
+APP_NAME=podinfo
 ```
 
-## CodeDeploy Configuration
+### Optional Features
+```bash
+# CodeDeploy (blue/green deployments)
+ENABLE_CODEDEPLOY=true
 
-### Lambda Deployment
-- **Application**: `podinfo-lambda-deploy`
-- **Deployment Group**: `podinfo-lambda-group`
-- **Deployment Config**: `CodeDeployDefault.LambdaCanary10Percent5Minutes`
-- **Rollback**: Automatic on deployment failure
+# Secrets rotation
+ENABLE_SECRETS_ROTATION=false
 
-### EC2 Deployment
-- **Application**: `podinfo-ec2-deploy`
-- **Deployment Group**: `podinfo-ec2-group`
-- **Deployment Config**: `CodeDeployDefault.AllAtOnce`
-- **Rollback**: Automatic on deployment failure
+# Lambda provisioned concurrency
+ENABLE_PROVISIONED_CONCURRENCY=false
+PROVISIONED_CONCURRENCY=1
+```
 
-## Monitoring and Observability
+## 🔐 GitHub Secrets
 
-### CloudWatch Dashboards
-- **Dashboard Name**: `podinfo-dashboard`
-- **URL**: `https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=podinfo-dashboard`
+### Required Secrets
+Set these in your GitHub repository settings under "Secrets and variables" → "Actions":
 
-### Log Groups
+| Secret Name | Description | Example Value |
+|-------------|-------------|---------------|
+| `AWS_ROLE_ARN` | IAM role for GitHub Actions | `arn:aws:iam::123456789012:role/podinfo-github-actions-role` |
+| `AWS_REGION` | AWS region for deployment | `us-west-2` |
+| `AWS_ACCOUNT_ID` | AWS account ID | `123456789012` |
+| `ECR_REPOSITORY_LAMBDA` | ECR repository for Lambda images | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo-lambda` |
+| `ECR_REPOSITORY_EC2` | ECR repository for EC2 images | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo` |
+| `REPO_OWNER` | GitHub repository owner | `your-github-username` |
+| `REPO_NAME` | GitHub repository name | `podinfo-deployment-system` |
+
+### Optional Secrets
+| Secret Name | Description | Default Value |
+|-------------|-------------|---------------|
+| `ENABLE_CODEDEPLOY` | Enable CodeDeploy for blue/green deployments | `false` |
+| `ENABLE_SECRETS_ROTATION` | Enable automatic secrets rotation | `false` |
+| `ENABLE_PROVISIONED_CONCURRENCY` | Enable Lambda provisioned concurrency | `false` |
+| `PROVISIONED_CONCURRENCY` | Number of provisioned concurrency units | `1` |
+
+## 🏗️ Infrastructure Configuration
+
+### Terraform Variables
+Located in `infra/terraform.tfvars`:
+
+```hcl
+# Basic Configuration
+aws_region     = "us-west-2"
+aws_account_id = "123456789012"
+environment   = "dev"
+
+# GitHub Configuration
+github_org    = "your-github-username"
+github_repo   = "podinfo-deployment-system"
+github_branch = "main"
+
+# EC2 Configuration
+instance_type      = "t3.micro"
+asg_min_size      = 1
+asg_max_size      = 3
+asg_desired_capacity = 1
+
+# Lambda Configuration
+lambda_timeout = 30
+lambda_memory  = 512
+
+# Feature Toggles
+enable_codedeploy           = true
+enable_secrets_rotation     = false
+enable_provisioned_concurrency = false
+provisioned_concurrency     = 1
+```
+
+## 🔑 AWS Secrets Manager
+
+### Secret Names
+The system creates the following secrets in AWS Secrets Manager:
+
+| Secret Name | Description | Rotation |
+|-------------|-------------|----------|
+| `podinfo/api-keys` | API keys for external services | Configurable |
+| `podinfo/database` | Database connection credentials | Configurable |
+
+### Secret ARNs
+Generated ARNs follow the pattern:
+```
+arn:aws:secretsmanager:REGION:ACCOUNT:secret:podinfo/SECRET-NAME-RANDOM
+```
+
+Example:
+```
+arn:aws:secretsmanager:us-west-2:123456789012:secret:podinfo/api-keys-hePXHT
+```
+
+## 🌐 Network Configuration
+
+### VPC Settings
+- **CIDR Block**: `10.0.0.0/16`
+- **Availability Zones**: 2 (us-west-2a, us-west-2b)
+- **Public Subnets**: `10.0.1.0/24`, `10.0.2.0/24`
+- **Private Subnets**: `10.0.10.0/24`, `10.0.20.0/24`
+
+### Security Groups
+- **ALB**: Port 80 (HTTP), Port 443 (HTTPS)
+- **EC2**: Port 8080 (Application)
+- **Lambda**: VPC access to private subnets
+
+## 📊 Monitoring Configuration
+
+### CloudWatch Log Groups
 - `/aws/lambda/podinfo-lambda`
-- `/aws/podinfo-ec2`
-- `/aws/podinfo-alb`
 - `/aws/apigateway/podinfo-api`
+- `/aws/applicationloadbalancer/podinfo-alb`
+- `/aws/ec2/podinfo-ec2`
 
-### Alarms
-- **Lambda Errors**: `podinfo-lambda-errors`
-- **EC2 CPU High**: `podinfo-ec2-cpu-high`
-- **ALB Target Health**: `podinfo-alb-target-health`
-- **Application Health**: `podinfo-application-health`
+### CloudWatch Alarms
+- Lambda errors > 5% in 5 minutes
+- EC2 CPU utilization > 80% in 5 minutes
+- ALB target health < 100%
+- Application health check failures
 
-### SNS Topics
-- **Topic Name**: `podinfo-notifications`
-- **ARN**: `arn:aws:sns:us-west-2:123456789012:podinfo-notifications`
+### Dashboard
+- **Name**: `podinfo-dashboard`
+- **URL**: `https://console.aws.amazon.com/cloudwatch/home#dashboards:name=podinfo-dashboard`
 
-## Security Configuration
+## 🐳 Container Configuration
+
+### Base Images
+- **Build**: `public.ecr.aws/docker/library/golang:1.21-alpine`
+- **Runtime**: `public.ecr.aws/docker/library/alpine:3.18`
+
+### Image Tags
+- **Latest**: `latest`
+- **Versioned**: Git commit SHA
+- **Digest**: SHA256 hash for immutable references
+
+## 🔒 Security Configuration
 
 ### IAM Roles
 - **GitHub Actions**: `podinfo-github-actions-role`
@@ -107,128 +173,55 @@ This document describes the environment variables, configuration, and deployment
 - **EC2 Instance**: `podinfo-ec2-role`
 - **CodeDeploy**: `podinfo-codedeploy-role`
 
-### KMS Keys
-- **Key Name**: `podinfo-key`
-- **Key ID**: `arn:aws:kms:us-west-2:123456789012:key/12345678-1234-1234-1234-123456789012`
-- **Rotation**: Enabled
+### KMS Key
+- **Alias**: `alias/podinfo-key`
+- **Rotation**: Enabled (if configured)
+- **Usage**: ECR encryption, CloudWatch log encryption
 
-### Security Groups
-- **ALB**: `podinfo-alb-sg` (ports 80, 443)
-- **EC2**: `podinfo-ec2-sg` (port 8080, 22)
-- **Lambda**: `podinfo-lambda-sg` (outbound only)
+## 🚀 Deployment Configuration
 
-## Application Configuration
+### CodeDeploy Applications
+- **Lambda**: `podinfo-lambda-deploy`
+- **EC2**: `podinfo-ec2-deploy`
 
-### Environment Variables
-- **PORT**: `8080`
-- **ENVIRONMENT**: `dev` / `prod`
-- **LOG_LEVEL**: `info`
-- **VERSION**: `1.0.0`
+### Deployment Groups
+- **Lambda**: `podinfo-lambda-group`
+- **EC2**: `podinfo-ec2-group`
 
-### Health Check Endpoints
-- **Health**: `/healthz`
-- **Readiness**: `/readyz`
-- **Metrics**: `/metrics`
+### Deployment Configurations
+- **Lambda**: `CodeDeployDefault.LambdaCanary10Percent5Minutes`
+- **EC2**: `CodeDeployDefault.AllAtOnce`
 
-### API Endpoints
-- **Home**: `/`
-- **Version**: `/version`
-- **Info**: `/info`
-- **Data**: `/api/data`
-- **Secret**: `/api/secret`
+## 📈 Scaling Configuration
 
-## Deployment Configuration
+### Auto Scaling Group
+- **Min Size**: 1
+- **Max Size**: 3
+- **Desired Capacity**: 1
+- **Instance Type**: t3.micro (Free Tier eligible)
 
-### GitHub Actions
-- **Workflow**: `.github/workflows/build.yml`
-- **OIDC Role**: `podinfo-github-actions-role`
-- **Branch Protection**: Required for `main` branch
-- **Approval**: Required for production deployments
+### Lambda Scaling
+- **Memory**: 512 MB
+- **Timeout**: 30 seconds
+- **Concurrency**: Unlimited (or provisioned if enabled)
 
-### Container Configuration
-- **Base Image**: `alpine:3.18`
-- **User**: `podinfo` (non-root)
-- **Port**: `8080`
-- **Health Check**: 30s interval, 10s timeout
+## 🔧 Environment-Specific Settings
 
-### Deployment Strategy
-- **Lambda**: Canary deployment (10% → 100% over 5 minutes)
-- **EC2**: Blue/Green deployment with traffic shifting
-- **Rollback**: Automatic on health check failures
+### Development
+- Single EC2 instance
+- Basic monitoring
+- CodeDeploy optional
 
-## Network Configuration
+### Production
+- Multiple EC2 instances
+- Enhanced monitoring
+- CodeDeploy required
+- Human approval gates
 
-### DNS
-- **Lambda API**: `api.podinfo.dev.example.com` / `api.podinfo.prod.example.com`
-- **ALB**: `podinfo.dev.example.com` / `podinfo.prod.example.com`
+## 📝 Notes
 
-### SSL/TLS
-- **Certificate**: AWS Certificate Manager
-- **Protocol**: TLS 1.2+
-- **Cipher Suites**: Modern standards
-
-## Cost Optimization
-
-### Resource Limits
-- **EC2 Instances**: 2 (min), 2 (max)
-- **Lambda Concurrency**: 1000
-- **ALB**: 1 (Application Load Balancer)
-
-### Monitoring Costs
-- **CloudWatch Logs**: 30-day retention
-- **CloudWatch Metrics**: Standard resolution
-- **SNS**: Standard pricing
-
-## Disaster Recovery
-
-### Backup Strategy
-- **EBS Snapshots**: Automated daily
-- **RDS Snapshots**: Automated daily (if applicable)
-- **S3 Cross-Region Replication**: Enabled
-
-### Recovery Time Objectives
-- **RTO**: 4 hours
-- **RPO**: 1 hour
-
-## Compliance and Governance
-
-### Security Standards
-- **Encryption**: At rest and in transit
-- **Access Control**: Least privilege
-- **Audit Logging**: CloudTrail enabled
-- **Vulnerability Scanning**: ECR image scanning
-
-### Compliance Frameworks
-- **SOC 2**: Type II
-- **ISO 27001**: Implemented
-- **GDPR**: Data protection measures
-
-## Troubleshooting
-
-### Common Issues
-1. **Deployment Failures**: Check CodeDeploy logs
-2. **Health Check Failures**: Verify application endpoints
-3. **Performance Issues**: Monitor CloudWatch metrics
-4. **Security Issues**: Review IAM policies and security groups
-
-### Support Contacts
-- **AWS Support**: Enterprise level
-- **GitHub Support**: Standard
-- **Internal Team**: DevOps team
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2024-01-01 | Initial deployment |
-| 1.1.0 | 2024-01-15 | Added Lambda support |
-| 1.2.0 | 2024-02-01 | Added EC2 support |
-| 1.3.0 | 2024-02-15 | Added monitoring |
-| 1.4.0 | 2024-03-01 | Added security scanning |
-
-## Notes
-
-- All ARNs and IDs are placeholders and should be replaced with actual values
-- Environment-specific values should be configured per environment
-- Regular security reviews and updates are recommended
-- Cost monitoring and optimization should be performed monthly
+- All ARNs and resource names are generated by Terraform
+- Secret values are auto-generated and stored securely
+- ECR repositories are created automatically
+- CloudWatch dashboards are updated automatically
+- All resources are tagged for cost tracking and management

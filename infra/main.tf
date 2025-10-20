@@ -54,7 +54,7 @@ locals {
 
 # Global Infrastructure Module
 module "global" {
-  source = "./modules/global"
+  source = "./global"
   
   name_prefix = local.name_prefix
   environment = var.environment
@@ -78,7 +78,7 @@ module "global" {
 
 # Lambda Infrastructure Module
 module "lambda" {
-  source = "./modules/lambda"
+  source = "./lambda"
   
   name_prefix = local.name_prefix
   environment = var.environment
@@ -115,7 +115,7 @@ module "lambda" {
 
 # EC2 Infrastructure Module
 module "ec2" {
-  source = "./modules/ec2"
+  source = "./ec2"
   
   name_prefix = local.name_prefix
   environment = var.environment
@@ -158,7 +158,7 @@ module "ec2" {
 
 # Secrets Manager Module
 module "secrets" {
-  source = "./modules/secrets"
+  source = "./global/secrets"
   
   name_prefix = local.name_prefix
   environment = var.environment
@@ -182,7 +182,7 @@ module "secrets" {
 
 # Observability Module
 module "observability" {
-  source = "./modules/observability"
+  source = "./global/observability"
   
   name_prefix = local.name_prefix
   environment = var.environment

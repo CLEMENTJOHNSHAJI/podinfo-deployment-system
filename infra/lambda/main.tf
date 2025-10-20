@@ -7,10 +7,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.0"
-    }
   }
 }
 
@@ -18,21 +14,7 @@ terraform {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Placeholder Lambda function code
-data "archive_file" "lambda_placeholder" {
-  type        = "zip"
-  output_path = "/tmp/lambda_placeholder.zip"
-  source {
-    content = <<EOF
-def handler(event, context):
-    return {
-        'statusCode': 200,
-        'body': '{"message": "Podinfo Lambda placeholder - Docker image not yet built"}'
-    }
-EOF
-    filename = "index.py"
-  }
-}
+# Placeholder archive file removed - using container image instead
 
 # API Gateway HTTP API
 resource "aws_apigatewayv2_api" "main" {
@@ -194,14 +176,12 @@ resource "aws_security_group" "lambda" {
   })
 }
 
-# Lambda Function - Using placeholder until Docker image is built
+# Lambda Function - Using container image
 resource "aws_lambda_function" "main" {
   function_name = var.lambda_function_name
   role          = aws_iam_role.lambda_execution.arn
-  package_type  = "Zip"
-  filename      = data.archive_file.lambda_placeholder.output_path
-  handler       = "index.handler"
-  runtime       = "python3.9"
+  package_type  = "Image"
+  image_uri     = "${var.ecr_repository_url}:latest"
   
   timeout     = var.lambda_timeout
   memory_size = var.lambda_memory
