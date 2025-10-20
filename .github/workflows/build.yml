@@ -144,12 +144,26 @@ jobs:
           format: 'sarif'
           output: 'trivy-lambda-results.sarif'
       
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-ec2-results.sarif
+      - name: Combine SARIF files
+        run: |
+          # Install jq for JSON processing
+          sudo apt-get update && sudo apt-get install -y jq
+          
+          # Read both SARIF files
+          ec2_sarif=$(cat trivy-ec2-results.sarif)
+          lambda_sarif=$(cat trivy-lambda-results.sarif)
+          
+          # Extract runs from both files
+          ec2_runs=$(echo "$ec2_sarif" | jq '.runs')
+          lambda_runs=$(echo "$lambda_sarif" | jq '.runs')
+          
+          # Combine runs
+          combined_runs=$(echo "$ec2_runs $lambda_runs" | jq -s 'add')
+          
+          # Create combined SARIF file
+          echo "$ec2_sarif" | jq --argjson runs "$combined_runs" '.runs = $runs' > trivy-combined-results.sarif
       
-      - name: Upload Trivy Lambda scan results
+      - name: Upload combined Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-lambda-results.sarif
+          sarif_file: trivy-combined-results.sarif
