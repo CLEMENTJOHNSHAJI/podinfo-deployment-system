@@ -89,8 +89,8 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
-          # Create user data script and encode it
-          USER_DATA=$(cat << 'EOF'
+          # Create user data script
+          cat > user_data.sh << 'EOF'
           #!/bin/bash
           # Update system
           yum update -y
@@ -115,15 +115,21 @@ jobs:
           # Start CloudWatch agent
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
-          )
           
           # Encode user data to base64
-          USER_DATA_B64=$(echo "$USER_DATA" | base64 -w 0)
+          USER_DATA_B64=$(base64 -w 0 user_data.sh)
+          
+          # Create JSON input file for AWS CLI
+          cat > update_asg.json << EOF
+          {
+            "AutoScalingGroupName": "$ASG_NAME",
+            "UserData": "$USER_DATA_B64"
+          }
+          EOF
           
           # Update the user data to pull the new image
           aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name $ASG_NAME \
-            --user-data "$USER_DATA_B64"
+            --cli-input-json file://update_asg.json
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -260,8 +266,8 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
-          # Create user data script and encode it
-          USER_DATA=$(cat << 'EOF'
+          # Create user data script
+          cat > user_data.sh << 'EOF'
           #!/bin/bash
           # Update system
           yum update -y
@@ -286,15 +292,21 @@ jobs:
           # Start CloudWatch agent
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
-          )
           
           # Encode user data to base64
-          USER_DATA_B64=$(echo "$USER_DATA" | base64 -w 0)
+          USER_DATA_B64=$(base64 -w 0 user_data.sh)
+          
+          # Create JSON input file for AWS CLI
+          cat > update_asg.json << EOF
+          {
+            "AutoScalingGroupName": "$ASG_NAME",
+            "UserData": "$USER_DATA_B64"
+          }
+          EOF
           
           # Update the user data to pull the new image
           aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name $ASG_NAME \
-            --user-data "$USER_DATA_B64"
+            --cli-input-json file://update_asg.json
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
