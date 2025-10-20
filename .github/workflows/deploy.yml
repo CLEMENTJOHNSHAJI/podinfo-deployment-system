@@ -89,33 +89,37 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
+          # Create user data script
+          cat > user_data.sh << 'EOF'
+          #!/bin/bash
+          # Update system
+          yum update -y
+          
+          # Install Docker
+          yum install -y docker
+          systemctl start docker
+          systemctl enable docker
+          
+          # Install CloudWatch agent
+          yum install -y amazon-cloudwatch-agent
+          
+          # Login to ECR
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          
+          # Pull and run the new image
+          docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+          docker stop podinfo || true
+          docker rm podinfo || true
+          docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+          
+          # Start CloudWatch agent
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+          EOF
+          
           # Update the user data to pull the new image
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --user-data fileb://<(echo "#!/bin/bash
-              # Update system
-              yum update -y
-              
-              # Install Docker
-              yum install -y docker
-              systemctl start docker
-              systemctl enable docker
-              
-              # Install CloudWatch agent
-              yum install -y amazon-cloudwatch-agent
-              
-              # Login to ECR
-              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-              
-              # Pull and run the new image
-              docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
-              docker stop podinfo || true
-              docker rm podinfo || true
-              docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
-              
-              # Start CloudWatch agent
-              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
-            " | base64 -w 0)
+            --user-data fileb://user_data.sh
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -252,33 +256,37 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
+          # Create user data script
+          cat > user_data.sh << 'EOF'
+          #!/bin/bash
+          # Update system
+          yum update -y
+          
+          # Install Docker
+          yum install -y docker
+          systemctl start docker
+          systemctl enable docker
+          
+          # Install CloudWatch agent
+          yum install -y amazon-cloudwatch-agent
+          
+          # Login to ECR
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          
+          # Pull and run the new image
+          docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+          docker stop podinfo || true
+          docker rm podinfo || true
+          docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+          
+          # Start CloudWatch agent
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+          EOF
+          
           # Update the user data to pull the new image
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --user-data fileb://<(echo "#!/bin/bash
-              # Update system
-              yum update -y
-              
-              # Install Docker
-              yum install -y docker
-              systemctl start docker
-              systemctl enable docker
-              
-              # Install CloudWatch agent
-              yum install -y amazon-cloudwatch-agent
-              
-              # Login to ECR
-              aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-              
-              # Pull and run the new image
-              docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
-              docker stop podinfo || true
-              docker rm podinfo || true
-              docker run -d --name podinfo -p 8080:8080 ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
-              
-              # Start CloudWatch agent
-              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
-            " | base64 -w 0)
+            --user-data fileb://user_data.sh
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
