@@ -189,6 +189,16 @@ resource "aws_iam_role_policy_attachment" "rotation_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Grant Secrets Manager permission to invoke the Lambda function
+resource "aws_lambda_permission" "secrets_manager" {
+  count = var.enable_rotation ? 1 : 0
+  
+  statement_id  = "AllowExecutionFromSecretsManager"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.rotation[0].function_name
+  principal     = "secretsmanager.amazonaws.com"
+}
+
 # Enable rotation
 resource "aws_secretsmanager_secret_rotation" "app_secret" {
   count = var.enable_rotation ? 1 : 0

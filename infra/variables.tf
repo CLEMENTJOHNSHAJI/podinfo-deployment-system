@@ -36,6 +36,18 @@ variable "enable_secrets_rotation" {
   default     = false
 }
 
+variable "enable_provisioned_concurrency" {
+  description = "Enable Lambda provisioned concurrency"
+  type        = bool
+  default     = false
+}
+
+variable "provisioned_concurrency" {
+  description = "Number of provisioned concurrent executions"
+  type        = number
+  default     = 2
+}
+
 variable "aws_region" {
   description = "AWS region for deployment"
   type        = string
