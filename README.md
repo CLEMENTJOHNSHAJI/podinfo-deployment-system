@@ -4,15 +4,13 @@ A comprehensive, secure deployment system that builds, signs, and ships the Podi
 
 ## 🏗️ Architecture Overview
 
-- **Build & Sign**: GitHub Actions with OIDC authentication
-- **Container Registry**: AWS ECR with image signing and SBOM generation
-- **Deployment Targets**: 
-  - Lambda (API Gateway fronted)
-  - EC2 instances behind ALB
-- **Deployment Strategy**: Blue/Green with canary releases and automatic rollback
-- **Secrets Management**: AWS Secrets Manager with rotation
-- **Observability**: CloudWatch dashboards, alarms, and logging
-- **Promotion**: Dev → Prod with immutable tags
+- Build & Sign via GitHub Actions (OIDC)
+- AWS ECR registry (images signed; SBOM generated)
+- Targets: Lambda (API Gateway) and EC2 behind ALB
+- Strategy: Blue/Green with canary and rollback (via CodeDeploy)
+- Secrets: AWS Secrets Manager (rotation optional)
+- Observability: CloudWatch dashboards, alarms, logging
+- Promotion: Dev → Prod with immutable digests
 
 ## 🚀 Quick Start
 
@@ -46,18 +44,14 @@ cd terraform
 terraform init
 
 # Plan deployment
-terraform plan -var="github_org=your-org" -var="github_repo=your-repo"
+terraform plan
 
 # Deploy infrastructure
-terraform apply -var="github_org=your-org" -var="github_repo=your-repo"
+terraform apply
 ```
 
 ### 4. Configure GitHub OIDC
-1. Go to your GitHub repository settings
-2. Navigate to "Secrets and variables" → "Actions"
-3. Add the following secrets:
-   - `AWS_ROLE_ARN`: The ARN from Terraform output
-   - `AWS_ACCOUNT_ID`: Your AWS account ID
+In your GitHub repository Settings → Secrets and variables → Actions, set the required AWS and ECR secrets as described in `ENVIRONMENT.md`.
 
 ### 5. Deploy Application
 ```bash
@@ -126,12 +120,7 @@ git push origin main
 - `VERSION`: Application version
 
 ### AWS Resources
-- **ECR Repositories**: `podinfo`, `podinfo-lambda`
-- **Lambda Function**: `podinfo-lambda`
-- **API Gateway**: `podinfo-api`
-- **ALB**: `podinfo-alb`
-- **Auto Scaling Group**: `podinfo-asg`
-- **Secrets**: `podinfo/database`, `podinfo/api-keys`
+Deployed resources include ECR repositories, a Lambda function (with API Gateway), an ALB with EC2 capacity, CloudWatch monitoring, and Secrets Manager entries. Exact names are output by Terraform at apply time.
 
 ## 📊 Monitoring & Observability
 
@@ -159,10 +148,9 @@ git push origin main
 - Verify image signatures
 
 ### 2. Deploy Stage (Dev)
-- Deploy to Lambda with canary (10% → 100%)
-- Deploy to EC2 with blue/green
-- Run smoke tests and synthetic tests
-- Validate health checks
+- Deploy to Lambda by digest (canary via CodeDeploy when enabled)
+- Deploy to EC2 with blue/green (CodeDeploy)
+- Run smoke tests and validate health checks
 
 ### 3. Promotion (Dev → Prod)
 - Verify image signatures
@@ -173,35 +161,31 @@ git push origin main
 ## 🔒 Security Features
 
 ### Supply Chain Security
-- **Image Signing**: All images signed with cosign
-- **SBOM Generation**: Software Bill of Materials for each build
-- **Vulnerability Scanning**: Trivy security scans
-- **Policy Gates**: Unsigned artifacts rejected
+- Image signing with cosign
+- SBOM generation (syft)
+- Vulnerability scanning (Trivy)
+- Policy gate: only signed digests deploy
 
 ### Access Control
-- **OIDC Authentication**: No hardcoded credentials
-- **IAM Roles**: Least privilege access
-- **KMS Encryption**: All data encrypted at rest
-- **Network Security**: VPC isolation and security groups
+- OIDC to AWS (no static keys in CI)
+- IAM least privilege
+- Encryption at rest and VPC isolation
 
 ### Secrets Management
-- **AWS Secrets Manager**: Centralized secrets storage
-- **Automatic Rotation**: Scheduled secret rotation
-- **Log Redaction**: Secrets never appear in logs
-- **Cross-Region Replication**: Secrets available in all regions
+- AWS Secrets Manager for centralized secrets
+- Optional rotation support (enable when needed)
+- Ensure logs do not print secret values
 
 ## 📈 Scalability
 
 ### Current Implementation
-- **Lambda Pre-warming**: Provisioned concurrency for production
-- **Auto Scaling**: EC2 instances scale based on CPU/memory
-- **Load Balancing**: ALB distributes traffic across instances
+- Optional Lambda pre-warming (provisioned concurrency)
+- EC2 scaling via ASG and ALB
 
-### Multi-Region Plan
-- **Active/Active**: Deploy to multiple regions
-- **Route 53**: DNS-based traffic routing
-- **Cross-Region Replication**: ECR and secrets replication
-- **Failover**: Automatic failover on region outage
+### Multi-Region Plan (overview)
+- Active/active with Route 53 weighted or failover routing
+- Replicated registries and secrets
+- Health-based failover
 
 ## 🛠️ Operations
 
@@ -225,17 +209,7 @@ aws logs tail /aws/lambda/podinfo-lambda --follow
 ```
 
 ### Scale
-```bash
-# Scale Lambda concurrency
-aws lambda put-provisioned-concurrency-config \
-  --function-name podinfo-lambda \
-  --provisioned-concurrency-config ProvisionedConcurrencyCount=10
-
-# Scale EC2 instances
-aws autoscaling update-auto-scaling-group \
-  --auto-scaling-group-name podinfo-asg \
-  --desired-capacity 4
-```
+Use Terraform variables and CI pipeline to adjust capacity (e.g., provisioned concurrency or ASG sizes). Avoid ad-hoc scaling commands unless for incident response.
 
 ### Teardown
 ```bash
@@ -273,25 +247,5 @@ aws cloudwatch describe-alarms --alarm-names podinfo-lambda-errors
 - **[Environment Config](ENVIRONMENT.md)**: Detailed environment configuration
 - **[API Documentation](app/README.md)**: Application API endpoints
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
 ## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-- **Issues**: Create a GitHub issue
-- **Documentation**: Check the docs/ directory
-- **AWS Support**: Enterprise level support included
-- **Team**: DevOps team for internal support
-
----
-
-**Built with ❤️ for modern, secure, and scalable deployments**
+MIT License; see LICENSE for details.
