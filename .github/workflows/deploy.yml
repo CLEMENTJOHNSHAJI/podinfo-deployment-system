@@ -73,11 +73,16 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-lambda-deploy \
-            --deployment-group-name podinfo-lambda-group \
-            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-            --description "Deploy ${{ github.sha }} to Lambda"
+          # Check if CodeDeploy is available
+          if aws codedeploy help > /dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-lambda-deploy \
+              --deployment-group-name podinfo-lambda-group \
+              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+              --description "Deploy ${{ github.sha }} to Lambda"
+          else
+            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
+          fi
       
       - name: Deploy EC2 application
         run: |
@@ -115,11 +120,16 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-ec2-deploy \
-            --deployment-group-name podinfo-ec2-group \
-            --deployment-config-name CodeDeployDefault.AllAtOnce \
-            --description "Deploy ${{ github.sha }} to EC2"
+          # Check if CodeDeploy is available
+          if aws codedeploy help > /dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-ec2-deploy \
+              --deployment-group-name podinfo-ec2-group \
+              --deployment-config-name CodeDeployDefault.AllAtOnce \
+              --description "Deploy ${{ github.sha }} to EC2"
+          else
+            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
+          fi
       
       - name: Wait for deployments
         run: |
@@ -226,11 +236,16 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-lambda-deploy \
-            --deployment-group-name podinfo-lambda-group \
-            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-            --description "Production deploy ${{ github.sha }} to Lambda"
+          # Check if CodeDeploy is available
+          if aws codedeploy help > /dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-lambda-deploy \
+              --deployment-group-name podinfo-lambda-group \
+              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+              --description "Production deploy ${{ github.sha }} to Lambda"
+          else
+            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
+          fi
       
       - name: Deploy EC2 application
         run: |
@@ -268,11 +283,16 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-ec2-deploy \
-            --deployment-group-name podinfo-ec2-group \
-            --deployment-config-name CodeDeployDefault.AllAtOnce \
-            --description "Production deploy ${{ github.sha }} to EC2"
+          # Check if CodeDeploy is available
+          if aws codedeploy help > /dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-ec2-deploy \
+              --deployment-group-name podinfo-ec2-group \
+              --deployment-config-name CodeDeployDefault.AllAtOnce \
+              --description "Production deploy ${{ github.sha }} to EC2"
+          else
+            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
+          fi
       
       - name: Wait for deployments
         run: |
