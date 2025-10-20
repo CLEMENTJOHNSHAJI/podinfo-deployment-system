@@ -16,6 +16,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Ensure module graph is up-to-date and go.sum is generated
+RUN go mod tidy
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o podinfo .
 
