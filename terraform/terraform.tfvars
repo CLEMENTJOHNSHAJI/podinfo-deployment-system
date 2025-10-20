@@ -7,3 +7,6 @@ github_repo = "podinfo-deployment-system"
 github_branch = "main"
 aws_region = "us-west-2"
 aws_account_id = "484826611466"
+
+# Enable CodeDeploy blue/green resources
+enable_codedeploy = true

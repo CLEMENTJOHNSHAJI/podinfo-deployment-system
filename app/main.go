@@ -115,8 +115,8 @@ func (a *App) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
-		
-		log.Printf("[%s] %s %s %s %v", 
+
+		log.Printf("[%s] %s %s %s %v",
 			r.RemoteAddr, r.Method, r.URL.Path, r.Proto, duration)
 	})
 }
@@ -126,7 +126,7 @@ func (a *App) metricsMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
-		
+
 		httpRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration.Seconds())
 	})
 }
@@ -136,12 +136,12 @@ func (a *App) corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -155,7 +155,7 @@ func (a *App) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp":   time.Now().Format(time.RFC3339),
 		"request_id":  generateRequestID(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -166,7 +166,7 @@ func (a *App) versionHandler(w http.ResponseWriter, r *http.Request) {
 		"buildTime": a.config.BuildTime,
 		"commit":    a.config.Commit,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -182,7 +182,7 @@ func (a *App) infoHandler(w http.ResponseWriter, r *http.Request) {
 		"uptime":      getUptime(),
 		"request_id":  generateRequestID(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -190,22 +190,22 @@ func (a *App) infoHandler(w http.ResponseWriter, r *http.Request) {
 func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {
 	// Simulate health check logic
 	healthy := true
-	
+
 	// Check if we can connect to external services
 	// In a real application, this would check database, cache, etc.
-	
+
 	if healthy {
 		applicationHealth.WithLabelValues("podinfo").Set(1)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
-			"status": "healthy",
+			"status":    "healthy",
 			"timestamp": time.Now().Format(time.RFC3339),
 		})
 	} else {
 		applicationHealth.WithLabelValues("podinfo").Set(0)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{
-			"status": "unhealthy",
+			"status":    "unhealthy",
 			"timestamp": time.Now().Format(time.RFC3339),
 		})
 	}
@@ -214,20 +214,20 @@ func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {
 func (a *App) readinessCheck(w http.ResponseWriter, r *http.Request) {
 	// Simulate readiness check
 	ready := true
-	
+
 	// Check if the application is ready to serve traffic
 	// This could check database connections, external dependencies, etc.
-	
+
 	if ready {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
-			"status": "ready",
+			"status":    "ready",
 			"timestamp": time.Now().Format(time.RFC3339),
 		})
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{
-			"status": "not ready",
+			"status":    "not ready",
 			"timestamp": time.Now().Format(time.RFC3339),
 		})
 	}
@@ -242,7 +242,7 @@ func (a *App) dataHandler(w http.ResponseWriter, r *http.Request) {
 		"environment": a.config.Environment,
 		"version":     a.config.Version,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
@@ -251,11 +251,11 @@ func (a *App) secretHandler(w http.ResponseWriter, r *http.Request) {
 	// This would typically fetch from AWS Secrets Manager
 	// For demo purposes, we'll return a mock response
 	secret := map[string]string{
-		"message": "Secret data retrieved successfully",
+		"message":   "Secret data retrieved successfully",
 		"timestamp": time.Now().Format(time.RFC3339),
-		"note": "In production, this would fetch from AWS Secrets Manager",
+		"note":      "In production, this would fetch from AWS Secrets Manager",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(secret)
 }
@@ -266,10 +266,10 @@ func (a *App) metricsHandler(w http.ResponseWriter, r *http.Request) {
 		"application": "podinfo",
 		"version":     a.config.Version,
 		"environment": a.config.Environment,
-		"uptime":     getUptime(),
-		"timestamp":  time.Now().Format(time.RFC3339),
+		"uptime":      getUptime(),
+		"timestamp":   time.Now().Format(time.RFC3339),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metrics)
 }
@@ -297,7 +297,7 @@ func (a *App) Start() {
 	log.Printf("Starting Podinfo server on port %s", a.config.Port)
 	log.Printf("Environment: %s", a.config.Environment)
 	log.Printf("Version: %s", a.config.Version)
-	
+
 	server := &http.Server{
 		Addr:         ":" + a.config.Port,
 		Handler:      a.router,
@@ -305,7 +305,7 @@ func (a *App) Start() {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	
+
 	log.Fatal(server.ListenAndServe())
 }
 

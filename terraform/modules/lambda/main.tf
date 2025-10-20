@@ -244,10 +244,14 @@ resource "aws_lambda_alias" "live" {
   lifecycle {
     ignore_changes = [function_version]
   }
-  provisioned_concurrency_config {
-    count                                = var.enable_provisioned_concurrency ? 1 : 0
-    provisioned_concurrent_executions    = var.provisioned_concurrency
-  }
+}
+
+# Provisioned concurrency (guarded)
+resource "aws_lambda_provisioned_concurrency_config" "live" {
+  count                          = var.enable_provisioned_concurrency ? 1 : 0
+  function_name                  = aws_lambda_function.main.function_name
+  qualifier                      = aws_lambda_alias.live.name
+  provisioned_concurrent_executions = var.provisioned_concurrency
 }
 
 # CodeDeploy Application (guarded)
