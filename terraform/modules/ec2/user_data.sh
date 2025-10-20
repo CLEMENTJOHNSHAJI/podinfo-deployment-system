@@ -154,7 +154,7 @@ systemctl enable podinfo.service
 cat > /opt/podinfo/health_check.sh << 'EOF'
 #!/bin/bash
 HEALTH_URL="http://localhost:8080/healthz"
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+RESPONSE=$(curl -s -o /dev/null -w "%%{http_code}" $HEALTH_URL)
 if [ $RESPONSE -eq 200 ]; then
     echo "Health check passed"
     exit 0

@@ -53,9 +53,18 @@ brew install awscli
 brew install terraform
 ```
 
-### Install Docker:
+### Install Docker (for macOS Monterey):
 ```bash
-brew install --cask docker
+# Option 1: Colima (lightweight, recommended)
+brew install colima
+colima start
+
+# Option 2: Download Docker Desktop manually
+# Go to: https://docs.docker.com/desktop/mac/install/
+# Download version compatible with macOS Monterey
+
+# Option 3: Skip local Docker (GitHub Actions will build images)
+# You can skip this step if you only want to deploy to AWS
 ```
 
 ## Step 3: Configure AWS CLI 🔧

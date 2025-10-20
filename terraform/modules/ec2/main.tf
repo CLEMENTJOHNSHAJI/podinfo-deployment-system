@@ -422,151 +422,151 @@ resource "aws_autoscaling_group" "main" {
   }
 }
 
-# CodeDeploy Application
-resource "aws_codedeploy_application" "main" {
-  compute_platform = "Server"
-  name             = var.codedeploy_app_name
-  
-  tags = merge(var.common_tags, {
-    Name = var.codedeploy_app_name
-  })
-}
+# CodeDeploy Application - Temporarily disabled
+# resource "aws_codedeploy_app" "main" {
+#   compute_platform = "Server"
+#   name             = var.codedeploy_app_name
+#   
+#   tags = merge(var.common_tags, {
+#     Name = var.codedeploy_app_name
+#   })
+# }
 
-# CodeDeploy Deployment Group
-resource "aws_codedeploy_deployment_group" "main" {
-  app_name              = aws_codedeploy_application.main.name
-  deployment_group_name = var.codedeploy_group_name
-  service_role_arn      = aws_iam_role.codedeploy.arn
-  
-  deployment_config_name = "CodeDeployDefault.AllAtOnce"
-  
-  auto_rollback_configuration {
-    enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
-  }
-  
-  alarm_configuration {
-    alarms  = [aws_cloudwatch_metric_alarm.ec2_health.alarm_name]
-    enabled = true
-  }
-  
-  load_balancer_info {
-    target_group_info {
-      name = aws_lb_target_group.blue.name
-    }
-  }
-  
-  tags = merge(var.common_tags, {
-    Name = var.codedeploy_group_name
-  })
-}
+# CodeDeploy Deployment Group - Temporarily disabled
+# resource "aws_codedeploy_deployment_group" "main" {
+#   app_name              = aws_codedeploy_app.main.name
+#   deployment_group_name = var.codedeploy_group_name
+#   service_role_arn      = aws_iam_role.codedeploy.arn
+#   
+#   deployment_config_name = "CodeDeployDefault.AllAtOnce"
+#   
+#   auto_rollback_configuration {
+#     enabled = true
+#     events  = ["DEPLOYMENT_FAILURE"]
+#   }
+#   
+#   alarm_configuration {
+#     alarms  = [aws_cloudwatch_metric_alarm.ec2_health.alarm_name]
+#     enabled = true
+#   }
+#   
+#   load_balancer_info {
+#     target_group_info {
+#       name = aws_lb_target_group.blue.name
+#     }
+#   }
+#   
+#   tags = merge(var.common_tags, {
+#     Name = var.codedeploy_group_name
+#   })
+# }
 
-# CodeDeploy IAM Role
-resource "aws_iam_role" "codedeploy" {
-  name = "${var.name_prefix}-codedeploy-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "codedeploy.amazonaws.com"
-        }
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-codedeploy-role"
-  })
-}
+# CodeDeploy IAM Role - Temporarily disabled
+# resource "aws_iam_role" "codedeploy" {
+#   name = "${var.name_prefix}-codedeploy-role"
+#   
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = "sts:AssumeRole"
+#         Effect = "Allow"
+#         Principal = {
+#           Service = "codedeploy.amazonaws.com"
+#         }
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-codedeploy-role"
+#   })
+# }
 
-# CodeDeploy IAM Policy
-resource "aws_iam_policy" "codedeploy" {
-  name        = "${var.name_prefix}-codedeploy-policy"
-  description = "Policy for CodeDeploy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "autoscaling:CompleteLifecycleAction",
-          "autoscaling:DeleteLifecycleHook",
-          "autoscaling:DescribeAutoScalingGroups",
-          "autoscaling:DescribeLifecycleHooks",
-          "autoscaling:PutLifecycleHook",
-          "autoscaling:RecordLifecycleActionHeartbeat",
-          "autoscaling:CreateOrUpdateTags",
-          "autoscaling:DescribeTags",
-          "autoscaling:SetDesiredCapacity",
-          "autoscaling:DescribeAutoScalingInstances",
-          "autoscaling:DescribeLaunchConfigurations",
-          "autoscaling:DescribeScalingActivities",
-          "autoscaling:DescribeScheduledActions",
-          "autoscaling:DescribeNotificationConfigurations",
-          "autoscaling:DescribePolicies",
-          "autoscaling:DescribeScalingProcessTypes",
-          "autoscaling:DescribeTerminationPolicyTypes",
-          "autoscaling:DescribeMetricCollectionTypes",
-          "autoscaling:DescribeAdjustmentTypes",
-          "autoscaling:DescribeScalingActivities",
-          "autoscaling:DescribeScheduledActions",
-          "autoscaling:DescribeNotificationConfigurations",
-          "autoscaling:DescribePolicies",
-          "autoscaling:DescribeScalingProcessTypes",
-          "autoscaling:DescribeTerminationPolicyTypes",
-          "autoscaling:DescribeMetricCollectionTypes",
-          "autoscaling:DescribeAdjustmentTypes"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:ModifyTargetGroup",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:DescribeInstances",
-          "ec2:DescribeInstanceStatus",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeVpcs"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sns:Publish"
-        ]
-        Resource = var.sns_topic_arn
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-codedeploy-policy"
-  })
-}
+# CodeDeploy IAM Policy - Temporarily disabled
+# resource "aws_iam_policy" "codedeploy" {
+#   name        = "${var.name_prefix}-codedeploy-policy"
+#   description = "Policy for CodeDeploy"
+#   
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "autoscaling:CompleteLifecycleAction",
+#           "autoscaling:DeleteLifecycleHook",
+#           "autoscaling:DescribeAutoScalingGroups",
+#           "autoscaling:DescribeLifecycleHooks",
+#           "autoscaling:PutLifecycleHook",
+#           "autoscaling:RecordLifecycleActionHeartbeat",
+#           "autoscaling:CreateOrUpdateTags",
+#           "autoscaling:DescribeTags",
+#           "autoscaling:SetDesiredCapacity",
+#           "autoscaling:DescribeAutoScalingInstances",
+#           "autoscaling:DescribeLaunchConfigurations",
+#           "autoscaling:DescribeScalingActivities",
+#           "autoscaling:DescribeScheduledActions",
+#           "autoscaling:DescribeNotificationConfigurations",
+#           "autoscaling:DescribePolicies",
+#           "autoscaling:DescribeScalingProcessTypes",
+#           "autoscaling:DescribeTerminationPolicyTypes",
+#           "autoscaling:DescribeMetricCollectionTypes",
+#           "autoscaling:DescribeAdjustmentTypes",
+#           "autoscaling:DescribeScalingActivities",
+#           "autoscaling:DescribeScheduledActions",
+#           "autoscaling:DescribeNotificationConfigurations",
+#           "autoscaling:DescribePolicies",
+#           "autoscaling:DescribeScalingProcessTypes",
+#           "autoscaling:DescribeTerminationPolicyTypes",
+#           "autoscaling:DescribeMetricCollectionTypes",
+#           "autoscaling:DescribeAdjustmentTypes"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "elasticloadbalancing:DescribeLoadBalancers",
+#           "elasticloadbalancing:DescribeTargetGroups",
+#           "elasticloadbalancing:DescribeTargetHealth",
+#           "elasticloadbalancing:ModifyTargetGroup",
+#           "elasticloadbalancing:RegisterTargets",
+#           "elasticloadbalancing:DeregisterTargets"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "ec2:DescribeInstances",
+#           "ec2:DescribeInstanceStatus",
+#           "ec2:DescribeSecurityGroups",
+#           "ec2:DescribeSubnets",
+#           "ec2:DescribeVpcs"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "sns:Publish"
+#         ]
+#         Resource = var.sns_topic_arn
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-codedeploy-policy"
+#   })
+# }
 
-# Attach policy to role
-resource "aws_iam_role_policy_attachment" "codedeploy" {
-  role       = aws_iam_role.codedeploy.name
-  policy_arn = aws_iam_policy.codedeploy.arn
-}
+# Attach policy to role - Temporarily disabled
+# resource "aws_iam_role_policy_attachment" "codedeploy" {
+#   role       = aws_iam_role.codedeploy.name
+#   policy_arn = aws_iam_policy.codedeploy.arn
+# }
 
 # CloudWatch Alarm for EC2 health
 resource "aws_cloudwatch_metric_alarm" "ec2_health" {
@@ -730,12 +730,13 @@ output "green_target_group_arn" {
   value       = aws_lb_target_group.green.arn
 }
 
-output "codedeploy_app_name" {
-  description = "CodeDeploy application name"
-  value       = aws_codedeploy_application.main.name
-}
+# CodeDeploy outputs - Temporarily disabled
+# output "codedeploy_app_name" {
+#   description = "CodeDeploy application name"
+#   value       = aws_codedeploy_app.main.name
+# }
 
-output "codedeploy_group_name" {
-  description = "CodeDeploy deployment group name"
-  value       = aws_codedeploy_deployment_group.main.deployment_group_name
-}
+# output "codedeploy_group_name" {
+#   description = "CodeDeploy deployment group name"
+#   value       = aws_codedeploy_deployment_group.main.deployment_group_name
+# }

@@ -65,124 +65,124 @@ resource "random_password" "api_keys" {
   special = false
 }
 
-# Rotation Lambda Function
-resource "aws_lambda_function" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  function_name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}"
-  role          = aws_iam_role.rotation[each.key].arn
-  handler       = "index.handler"
-  runtime       = "python3.9"
-  timeout       = 60
-  
-  filename         = data.archive_file.rotation[each.key].output_path
-  source_code_hash = data.archive_file.rotation[each.key].output_base64sha256
-  
-  environment {
-    variables = {
-      SECRET_ARN = aws_secretsmanager_secret.secrets[each.key].arn
-    }
-  }
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}"
-  })
-}
+# Rotation Lambda Function - temporarily disabled
+# resource "aws_lambda_function" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   function_name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}"
+#   role          = aws_iam_role.rotation[each.key].arn
+#   handler       = "index.handler"
+#   runtime       = "python3.9"
+#   timeout       = 60
+#   
+#   filename         = data.archive_file.rotation[each.key].output_path
+#   source_code_hash = data.archive_file.rotation[each.key].output_base64sha256
+#   
+#   environment {
+#     variables = {
+#       SECRET_ARN = aws_secretsmanager_secret.secrets[each.key].arn
+#     }
+#   }
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}"
+#   })
+# }
 
-# Rotation Lambda IAM Role
-resource "aws_iam_role" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-role"
-  })
-}
+# Rotation Lambda IAM Role - temporarily disabled
+# resource "aws_iam_role" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-role"
+#   
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = "sts:AssumeRole"
+#         Effect = "Allow"
+#         Principal = {
+#           Service = "lambda.amazonaws.com"
+#         }
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-role"
+#   })
+# }
 
-# Rotation Lambda IAM Policy
-resource "aws_iam_policy" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  name        = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-policy"
-  description = "Policy for secret rotation Lambda"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:PutSecretValue",
-          "secretsmanager:UpdateSecretVersionStage"
-        ]
-        Resource = aws_secretsmanager_secret.secrets[each.key].arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-policy"
-  })
-}
+# Rotation Lambda IAM Policy - temporarily disabled
+# resource "aws_iam_policy" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   name        = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-policy"
+#   description = "Policy for secret rotation Lambda"
+#   
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "secretsmanager:GetSecretValue",
+#           "secretsmanager:PutSecretValue",
+#           "secretsmanager:UpdateSecretVersionStage"
+#         ]
+#         Resource = aws_secretsmanager_secret.secrets[each.key].arn
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "logs:CreateLogGroup",
+#           "logs:CreateLogStream",
+#           "logs:PutLogEvents"
+#         ]
+#         Resource = "arn:aws:logs:*:*:*"
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-rotation-${replace(each.key, "/", "-")}-policy"
+#   })
+# }
 
-# Attach policy to role
-resource "aws_iam_role_policy_attachment" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  role       = aws_iam_role.rotation[each.key].name
-  policy_arn = aws_iam_policy.rotation[each.key].arn
-}
+# Attach policy to role - temporarily disabled
+# resource "aws_iam_role_policy_attachment" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   role       = aws_iam_role.rotation[each.key].name
+#   policy_arn = aws_iam_policy.rotation[each.key].arn
+# }
 
-# Rotation Lambda code
-data "archive_file" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  type        = "zip"
-  output_path = "/tmp/rotation-${replace(each.key, "/", "-")}.zip"
-  
-  source {
-    content = templatefile("${path.module}/rotation.py", {
-      secret_name = each.key
-    })
-    filename = "index.py"
-  }
-}
+# Rotation Lambda code - temporarily disabled
+# data "archive_file" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   type        = "zip"
+#   output_path = "/tmp/rotation-${replace(each.key, "/", "-")}.zip"
+#   
+#   source {
+#     content = templatefile("${path.module}/rotation.py", {
+#       secret_name = each.key
+#     })
+#     filename = "index.py"
+#   }
+# }
 
-# Rotation schedule
-resource "aws_secretsmanager_secret_rotation" "rotation" {
-  for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
-  
-  secret_id           = aws_secretsmanager_secret.secrets[each.key].id
-  rotation_lambda_arn = aws_lambda_function.rotation[each.key].arn
-  
-  rotation_rules {
-    automatically_after_days = each.value.rotation_days
-  }
-}
+# Rotation schedule - temporarily disabled to avoid Lambda permission issues
+# resource "aws_secretsmanager_secret_rotation" "rotation" {
+#   for_each = { for k, v in var.secrets : k => v if v.rotation_days > 0 }
+#   
+#   secret_id           = aws_secretsmanager_secret.secrets[each.key].id
+#   rotation_lambda_arn = aws_lambda_function.rotation[each.key].arn
+#   
+#   rotation_rules {
+#     automatically_after_days = each.value.rotation_days
+#   }
+# }
 
 # Variables
 variable "name_prefix" {

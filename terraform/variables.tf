@@ -39,7 +39,25 @@ variable "aws_account_id" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.micro"
+}
+
+variable "asg_min_size" {
+  description = "Auto Scaling Group minimum size"
+  type        = number
+  default     = 1
+}
+
+variable "asg_max_size" {
+  description = "Auto Scaling Group maximum size"
+  type        = number
+  default     = 1
+}
+
+variable "asg_desired_capacity" {
+  description = "Auto Scaling Group desired capacity"
+  type        = number
+  default     = 1
 }
 
 variable "min_instances" {
@@ -65,3 +83,4 @@ variable "lambda_timeout" {
   type        = number
   default     = 30
 }
+

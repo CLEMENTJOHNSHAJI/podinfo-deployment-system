@@ -141,10 +141,11 @@ resource "aws_iam_role" "github_actions" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = {
-            "${local.oidc_issuer}:aud" = local.oidc_audience
+            "token.actions.githubusercontent.com:aud" = local.oidc_audience
           }
           StringLike = {
-            "${local.oidc_issuer}:sub" = "repo:${var.github_org}/${var.github_repo}:*"
+            # Restrict to workflow runs from a single repository and branch
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${var.github_branch}"
           }
         }
       }
@@ -315,7 +316,7 @@ resource "aws_cloudwatch_log_group" "main" {
   
   name              = "/aws/${each.key}"
   retention_in_days = 30
-  kms_key_id        = aws_kms_key.main.arn
+  # kms_key_id        = aws_kms_key.main.arn  # Temporarily disabled to avoid circular dependency
   
   tags = merge(var.common_tags, {
     Name = each.key

@@ -22,7 +22,7 @@ Go to: https://github.com/CLEMENTJOHNSHAJI/podinfo-deployment-system/settings/se
 Add these secrets:
 - AWS_ROLE_ARN: (from Terraform output)
 - AWS_ACCOUNT_ID: 484826611466
-- AWS_REGION: eu-north-1
+- AWS_REGION: us-west-2
 
 ## Step 3: Test Deployment
 
@@ -35,7 +35,7 @@ git push origin main
 ## Step 4: Monitor Deployment
 
 - GitHub Actions: https://github.com/CLEMENTJOHNSHAJI/podinfo-deployment-system/actions
-- AWS Console: https://eu-north-1.console.aws.amazon.com/
+- AWS Console: https://us-west-2.console.aws.amazon.com/
 - CloudWatch Dashboard: (URL from Terraform output)
 
 ## Troubleshooting

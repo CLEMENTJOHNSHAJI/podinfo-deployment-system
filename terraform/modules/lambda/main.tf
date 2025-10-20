@@ -51,7 +51,6 @@ resource "aws_apigatewayv2_stage" "main" {
       status         = "$context.status"
       protocol       = "$context.protocol"
       responseLength = "$context.responseLength"
-      responseTime   = "$context.responseTime"
       userAgent      = "$context.identity.userAgent"
       correlationId  = "$context.requestId"
     })
@@ -175,12 +174,14 @@ resource "aws_security_group" "lambda" {
   })
 }
 
-# Lambda Function
+# Lambda Function - Using placeholder until Docker image is built
 resource "aws_lambda_function" "main" {
   function_name = var.lambda_function_name
   role          = aws_iam_role.lambda_execution.arn
-  package_type  = "Image"
-  image_uri     = "${var.ecr_repository_url}:latest"
+  package_type  = "Zip"
+  filename      = data.archive_file.lambda_placeholder.output_path
+  handler       = "index.handler"
+  runtime       = "python3.9"
   
   timeout     = var.lambda_timeout
   memory_size = var.lambda_memory
@@ -207,6 +208,22 @@ resource "aws_lambda_function" "main" {
   })
 }
 
+# Placeholder Lambda function code
+data "archive_file" "lambda_placeholder" {
+  type        = "zip"
+  output_path = "/tmp/lambda_placeholder.zip"
+  source {
+    content = <<EOF
+def handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': '{"message": "Podinfo Lambda placeholder - Docker image not yet built"}'
+    }
+EOF
+    filename = "index.py"
+  }
+}
+
 # CloudWatch Log Group for Lambda
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${var.lambda_function_name}"
@@ -229,116 +246,116 @@ resource "aws_lambda_alias" "live" {
   }
 }
 
-# CodeDeploy Application
-resource "aws_codedeploy_application" "main" {
-  compute_platform = "Lambda"
-  name             = var.codedeploy_app_name
-  
-  tags = merge(var.common_tags, {
-    Name = var.codedeploy_app_name
-  })
-}
+# CodeDeploy Application - Temporarily disabled
+# resource "aws_codedeploy_app" "main" {
+#   compute_platform = "Lambda"
+#   name             = var.codedeploy_app_name
+#   
+#   tags = merge(var.common_tags, {
+#     Name = var.codedeploy_app_name
+#   })
+# }
 
-# CodeDeploy Deployment Group
-resource "aws_codedeploy_deployment_group" "main" {
-  app_name              = aws_codedeploy_application.main.name
-  deployment_group_name = var.codedeploy_group_name
-  service_role_arn      = aws_iam_role.codedeploy.arn
-  
-  deployment_config_name = "CodeDeployDefault.LambdaAllAtOnce"
-  
-  auto_rollback_configuration {
-    enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
-  }
-  
-  alarm_configuration {
-    alarms  = [aws_cloudwatch_metric_alarm.lambda_errors.alarm_name]
-    enabled = true
-  }
-  
-  tags = merge(var.common_tags, {
-    Name = var.codedeploy_group_name
-  })
-}
+# CodeDeploy Deployment Group - Temporarily disabled
+# resource "aws_codedeploy_deployment_group" "main" {
+#   app_name              = aws_codedeploy_app.main.name
+#   deployment_group_name = var.codedeploy_group_name
+#   service_role_arn      = aws_iam_role.codedeploy.arn
+#   
+#   deployment_config_name = "CodeDeployDefault.LambdaAllAtOnce"
+#   
+#   auto_rollback_configuration {
+#     enabled = true
+#     events  = ["DEPLOYMENT_FAILURE"]
+#   }
+#   
+#   alarm_configuration {
+#     alarms  = [aws_cloudwatch_metric_alarm.lambda_errors.alarm_name]
+#     enabled = true
+#   }
+#   
+#   tags = merge(var.common_tags, {
+#     Name = var.codedeploy_group_name
+#   })
+# }
 
-# CodeDeploy IAM Role
-resource "aws_iam_role" "codedeploy" {
-  name = "${var.name_prefix}-codedeploy-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "codedeploy.amazonaws.com"
-        }
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-codedeploy-role"
-  })
-}
+# CodeDeploy IAM Role - Temporarily disabled
+# resource "aws_iam_role" "codedeploy" {
+#   name = "${var.name_prefix}-codedeploy-role"
+#   
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = "sts:AssumeRole"
+#         Effect = "Allow"
+#         Principal = {
+#           Service = "codedeploy.amazonaws.com"
+#         }
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-codedeploy-role"
+#   })
+# }
 
-# CodeDeploy IAM Policy
-resource "aws_iam_policy" "codedeploy" {
-  name        = "${var.name_prefix}-codedeploy-policy"
-  description = "Policy for CodeDeploy"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction",
-          "lambda:GetFunction",
-          "lambda:GetFunctionConfiguration",
-          "lambda:GetAlias",
-          "lambda:ListAliases",
-          "lambda:ListVersionsByFunction",
-          "lambda:UpdateAlias",
-          "lambda:CreateAlias",
-          "lambda:DeleteAlias"
-        ]
-        Resource = [
-          aws_lambda_function.main.arn,
-          "${aws_lambda_function.main.arn}:*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:GetMetricStatistics",
-          "cloudwatch:ListMetrics",
-          "cloudwatch:GetMetricData"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "sns:Publish"
-        ]
-        Resource = var.sns_topic_arn
-      }
-    ]
-  })
-  
-  tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-codedeploy-policy"
-  })
-}
+# CodeDeploy IAM Policy - Temporarily disabled
+# resource "aws_iam_policy" "codedeploy" {
+#   name        = "${var.name_prefix}-codedeploy-policy"
+#   description = "Policy for CodeDeploy"
+#   
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "lambda:InvokeFunction",
+#           "lambda:GetFunction",
+#           "lambda:GetFunctionConfiguration",
+#           "lambda:GetAlias",
+#           "lambda:ListAliases",
+#           "lambda:ListVersionsByFunction",
+#           "lambda:UpdateAlias",
+#           "lambda:CreateAlias",
+#           "lambda:DeleteAlias"
+#         ]
+#         Resource = [
+#           aws_lambda_function.main.arn,
+#           "${aws_lambda_function.main.arn}:*"
+#         ]
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "cloudwatch:GetMetricStatistics",
+#           "cloudwatch:ListMetrics",
+#           "cloudwatch:GetMetricData"
+#         ]
+#         Resource = "*"
+#       },
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "sns:Publish"
+#         ]
+#         Resource = var.sns_topic_arn
+#       }
+#     ]
+#   })
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.name_prefix}-codedeploy-policy"
+#   })
+# }
 
-# Attach policy to role
-resource "aws_iam_role_policy_attachment" "codedeploy" {
-  role       = aws_iam_role.codedeploy.name
-  policy_arn = aws_iam_policy.codedeploy.arn
-}
+# Attach policy to role - Temporarily disabled
+# resource "aws_iam_role_policy_attachment" "codedeploy" {
+#   role       = aws_iam_role.codedeploy.name
+#   policy_arn = aws_iam_policy.codedeploy.arn
+# }
 
 # CloudWatch Alarm for Lambda errors
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
@@ -482,12 +499,13 @@ output "lambda_security_group_id" {
   value       = var.vpc_config != null ? aws_security_group.lambda[0].id : null
 }
 
-output "codedeploy_app_name" {
-  description = "CodeDeploy application name"
-  value       = aws_codedeploy_application.main.name
-}
+# CodeDeploy outputs - Temporarily disabled
+# output "codedeploy_app_name" {
+#   description = "CodeDeploy application name"
+#   value       = aws_codedeploy_app.main.name
+# }
 
-output "codedeploy_group_name" {
-  description = "CodeDeploy deployment group name"
-  value       = aws_codedeploy_deployment_group.main.deployment_group_name
-}
+# output "codedeploy_group_name" {
+#   description = "CodeDeploy deployment group name"
+#   value       = aws_codedeploy_deployment_group.main.deployment_group_name
+# }

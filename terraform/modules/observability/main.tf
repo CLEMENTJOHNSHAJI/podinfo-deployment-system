@@ -110,10 +110,6 @@ resource "aws_cloudwatch_dashboard" "main" {
       }
     ]
   })
-  
-  tags = merge(var.common_tags, {
-    Name = var.dashboard_name
-  })
 }
 
 # CloudWatch Log Groups

@@ -11,6 +11,11 @@ terraform {
   }
 }
 
+# Configure the AWS Provider
+provider "aws" {
+  region = var.aws_region
+}
+
 # Data sources
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -95,10 +100,14 @@ module "lambda" {
   codedeploy_app_name = "${local.name_prefix}-lambda-deploy"
   codedeploy_group_name = "${local.name_prefix}-lambda-group"
   
-  # Security
+  # SNS Topic for notifications
+  sns_topic_arn = module.global.sns_topic_arn
+  
+  # Security - will be configured after Lambda is created
   vpc_config = {
+    vpc_id             = module.ec2.vpc_id
     subnet_ids         = module.ec2.private_subnet_ids
-    security_group_ids = [module.lambda.lambda_security_group_id]
+    security_group_ids = []
   }
   
   depends_on = [module.global, module.ec2]
@@ -119,16 +128,15 @@ module "ec2" {
   # ALB Configuration
   alb_name = "${local.name_prefix}-alb"
   alb_internal = false
-  alb_ssl_policy = "ELBSecurityPolicy-TLS-1-2-2017-01"
   
   # Auto Scaling Configuration
   asg_name = "${local.name_prefix}-asg"
-  asg_min_size = 2
-  asg_max_size = 2
-  asg_desired_capacity = 2
+  asg_min_size = var.asg_min_size
+  asg_max_size = var.asg_max_size
+  asg_desired_capacity = var.asg_desired_capacity
   
   # Instance Configuration
-  instance_type = "t3.medium"
+  instance_type = var.instance_type
   instance_ami = data.aws_ami.amazon_linux.id
   
   # Application Configuration
@@ -142,11 +150,8 @@ module "ec2" {
   # ECR Repository
   ecr_repository_url = module.global.ecr_repository_urls["podinfo"]
   
-  # Security Groups
-  security_groups = {
-    alb = module.ec2.alb_security_group_id
-    ec2 = module.ec2.ec2_security_group_id
-  }
+  # SNS Topic for notifications
+  sns_topic_arn = module.global.sns_topic_arn
   
   depends_on = [module.global]
 }
@@ -234,28 +239,7 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Variables
-variable "environment" {
-  description = "Environment name (dev, staging, prod)"
-  type        = string
-  default     = "dev"
-}
-
-variable "github_org" {
-  description = "GitHub organization name"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repository name"
-  type        = string
-}
-
-variable "github_branch" {
-  description = "GitHub branch name for OIDC trust"
-  type        = string
-  default     = "main"
-}
+# Variables are now defined in variables.tf
 
 # Outputs
 output "ecr_repository_urls" {

@@ -19,6 +19,9 @@ echo "GitHub Username: $GITHUB_USERNAME"
 echo "AWS Account ID: $AWS_ACCOUNT_ID"
 echo "AWS Region: $AWS_REGION"
 echo ""
+echo "🐳 Docker Note: No local Docker needed!"
+echo "GitHub Actions will build images in the cloud."
+echo ""
 
 # Create terraform.tfvars file
 cat > terraform/terraform.tfvars << EOF
@@ -124,3 +127,4 @@ echo "4. Configure GitHub secrets"
 echo "5. Push to GitHub to trigger deployment"
 echo ""
 echo "Happy deploying! 🚀"
+
