@@ -100,10 +100,6 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
-          # Get the current Launch Template ID
-          LAUNCH_TEMPLATE_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)
-          LAUNCH_TEMPLATE_VERSION=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --query 'AutoScalingGroups[0].LaunchTemplate.Version' --output text)
-          
           # Create user data script
           cat > user_data.sh << 'EOF'
           #!/bin/bash
@@ -134,17 +130,16 @@ jobs:
           # Encode user data to base64
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          # Create new Launch Template version with updated user data
-          NEW_LAUNCH_TEMPLATE_VERSION=$(aws ec2 create-launch-template-version \
-            --launch-template-id $LAUNCH_TEMPLATE_ID \
-            --source-version $LAUNCH_TEMPLATE_VERSION \
-            --launch-template-data "UserData=$USER_DATA_B64" \
-            --query 'LaunchTemplateVersion.VersionNumber' --output text)
+          # Create a new Launch Template with updated user data
+          NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
+            --launch-template-name podinfo-github-actions-$(date +%s) \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=ami-0e6af742d565ff61c,InstanceType=t3.micro,SecurityGroupIds=sg-0c0ae6c0c58040f61" \
+            --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
-          # Update Auto Scaling Group to use new Launch Template version
+          # Update Auto Scaling Group to use new Launch Template
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID,Version=$NEW_LAUNCH_TEMPLATE_VERSION
+            --launch-template LaunchTemplateId=$NEW_LAUNCH_TEMPLATE_ID,Version='$Latest'
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -281,10 +276,6 @@ jobs:
           # Get the latest Auto Scaling Group instances
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
           
-          # Get the current Launch Template ID
-          LAUNCH_TEMPLATE_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)
-          LAUNCH_TEMPLATE_VERSION=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --query 'AutoScalingGroups[0].LaunchTemplate.Version' --output text)
-          
           # Create user data script
           cat > user_data.sh << 'EOF'
           #!/bin/bash
@@ -315,17 +306,16 @@ jobs:
           # Encode user data to base64
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          # Create new Launch Template version with updated user data
-          NEW_LAUNCH_TEMPLATE_VERSION=$(aws ec2 create-launch-template-version \
-            --launch-template-id $LAUNCH_TEMPLATE_ID \
-            --source-version $LAUNCH_TEMPLATE_VERSION \
-            --launch-template-data "UserData=$USER_DATA_B64" \
-            --query 'LaunchTemplateVersion.VersionNumber' --output text)
+          # Create a new Launch Template with updated user data
+          NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
+            --launch-template-name podinfo-github-actions-$(date +%s) \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=ami-0e6af742d565ff61c,InstanceType=t3.micro,SecurityGroupIds=sg-0c0ae6c0c58040f61" \
+            --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
-          # Update Auto Scaling Group to use new Launch Template version
+          # Update Auto Scaling Group to use new Launch Template
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID,Version=$NEW_LAUNCH_TEMPLATE_VERSION
+            --launch-template LaunchTemplateId=$NEW_LAUNCH_TEMPLATE_ID,Version='$Latest'
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
