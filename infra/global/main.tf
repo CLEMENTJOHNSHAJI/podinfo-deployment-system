@@ -247,6 +247,7 @@ resource "aws_iam_policy" "github_actions" {
           "ec2:DescribeVpcs",
           "ec2:DescribeLaunchTemplates",
           "ec2:DescribeLaunchTemplateVersions",
+          "ec2:CreateLaunchTemplate",
           "ec2:CreateLaunchTemplateVersion",
           "autoscaling:DescribeAutoScalingGroups",
           "autoscaling:UpdateAutoScalingGroup",
