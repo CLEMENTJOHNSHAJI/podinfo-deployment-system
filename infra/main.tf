@@ -165,29 +165,6 @@ module "ec2" {
   depends_on = [module.global]
 }
 
-# Secrets Manager Module
-module "secrets" {
-  source = "./global/secrets"
-  
-  name_prefix = local.name_prefix
-  environment = var.environment
-  common_tags = local.common_tags
-  
-  # Secrets Configuration
-  secrets = {
-    "podinfo/database" = {
-      description = "Database connection secrets for Podinfo"
-      rotation_days = 30
-    }
-    "podinfo/api-keys" = {
-      description = "API keys for external services"
-      rotation_days = 90
-    }
-  }
-  
-  # KMS Key for encryption
-  kms_key_id = module.global.kms_key_id
-}
 
 # Observability Module
 module "observability" {
@@ -276,10 +253,6 @@ output "alb_dns_name" {
   value       = module.ec2.alb_dns_name
 }
 
-output "secrets_arns" {
-  description = "Secrets Manager ARNs"
-  value       = module.secrets.secret_arns
-}
 
 output "dashboard_url" {
   description = "CloudWatch Dashboard URL"

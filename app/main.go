@@ -142,15 +142,18 @@ func NewApp() *App {
 	}
 
 	// Load secrets
-	secrets, err := loadSecrets(config.SecretARN)
+	loadedSecrets, err := loadSecrets(config.SecretARN)
 	if err != nil {
 		log.Printf("Warning: Failed to load secrets: %v", err)
-		secrets = &Secrets{
+		loadedSecrets = &Secrets{
 			SuperSecretToken: "fallback-token",
 			DatabaseURL:      "postgresql://fallback:fallback@localhost:5432/podinfo",
 			APIKey:          "fallback-api-key",
 		}
 	}
+	
+	// Set global secrets variable
+	secrets = *loadedSecrets
 
 	// Register Prometheus metrics
 	prometheus.MustRegister(httpRequestsTotal)
