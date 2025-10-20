@@ -37,34 +37,33 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
       
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
       - name: Build and push Lambda image
         id: build-lambda
-        uses: docker/build-push-action@v5
-        with:
-          context: ./app
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
-            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          # Build the image
+          docker build -t ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} -t ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest ./app
+          
+          # Push the image
+          docker push ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
+          
+          # Get the image digest
+          DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
       - name: Build and push EC2 image
         id: build-ec2
-        uses: docker/build-push-action@v5
-        with:
-          context: ./app
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
-            ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          # Build the image
+          docker build -t ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -t ${{ secrets.ECR_REPOSITORY_EC2 }}:latest ./app
+          
+          # Push the image
+          docker push ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
+          
+          # Get the image digest
+          DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
