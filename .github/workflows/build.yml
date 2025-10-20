@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: us-west-2
+  AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
   IMAGE_TAG: ${{ github.sha }}
 
@@ -43,8 +43,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
-            ${{ env.ECR_REGISTRY }}/podinfo-lambda:latest
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
@@ -55,22 +55,22 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/podinfo:${{ env.IMAGE_TAG }}
-            ${{ env.ECR_REGISTRY }}/podinfo:latest
+            ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
+            ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.ECR_REGISTRY }}/podinfo:${{ env.IMAGE_TAG }}
+          image: ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
           format: spdx-json
           output-file: sbom-podinfo.json
       
       - name: Generate SBOM for Lambda
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
+          image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
           format: spdx-json
           output-file: sbom-podinfo-lambda.json
       
@@ -91,11 +91,11 @@ jobs:
       
       - name: Sign Podinfo image
         run: |
-          cosign sign --yes ${{ env.ECR_REGISTRY }}/podinfo:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
       
       - name: Sign Lambda image
         run: |
-          cosign sign --yes ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
@@ -108,7 +108,7 @@ jobs:
       - name: Security scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.ECR_REGISTRY }}/podinfo:${{ env.IMAGE_TAG }}
+          image-ref: ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
           format: 'sarif'
           output: 'trivy-results.sarif'
       
@@ -140,7 +140,7 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name podinfo-lambda \
-            --image-uri ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
@@ -224,7 +224,7 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name podinfo-lambda \
-            --image-uri ${{ env.ECR_REGISTRY }}/podinfo-lambda:${{ env.IMAGE_TAG }}
+            --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
           
           aws lambda publish-version \
             --function-name podinfo-lambda \
