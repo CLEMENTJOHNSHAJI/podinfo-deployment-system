@@ -79,12 +79,13 @@ jobs:
       
       - name: Upload SBOM to ECR
         run: |
+          EC2_REPO_NAME=$(echo "${{ secrets.ECR_REPOSITORY_EC2 }}" | awk -F'/' '{print $2}')
+          LAMBDA_REPO_NAME=$(echo "${{ secrets.ECR_REPOSITORY_LAMBDA }}" | awk -F'/' '{print $2}')
           aws ecr put-image-scanning-configuration \
-            --repository-name podinfo \
+            --repository-name "$EC2_REPO_NAME" \
             --image-scanning-configuration scanOnPush=true
-          
           aws ecr put-image-scanning-configuration \
-            --repository-name podinfo-lambda \
+            --repository-name "$LAMBDA_REPO_NAME" \
             --image-scanning-configuration scanOnPush=true
       
       - name: Sign container image
