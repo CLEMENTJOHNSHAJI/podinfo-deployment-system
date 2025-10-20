@@ -110,7 +110,7 @@ jobs:
             --repository-name "$LAMBDA_REPO_NAME" \
             --image-scanning-configuration scanOnPush=true
       
-
+      
       - name: Require signatures before deploy (policy gate)
         run: |
           cosign verify \
@@ -147,6 +147,9 @@ jobs:
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: |
-            trivy-ec2-results.sarif
-            trivy-lambda-results.sarif
+          sarif_file: trivy-ec2-results.sarif
+      
+      - name: Upload Trivy Lambda scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-lambda-results.sarif
