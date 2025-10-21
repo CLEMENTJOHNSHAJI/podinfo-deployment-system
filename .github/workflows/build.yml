@@ -58,8 +58,8 @@ jobs:
           chmod +x cosign-linux-amd64
           sudo mv cosign-linux-amd64 /usr/local/bin/cosign
           
-          # Sign the image
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
+          # Sign the image using digest for consistency
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
       
       - name: Generate SBOM for Lambda image
         run: |
@@ -88,8 +88,8 @@ jobs:
       
       - name: Sign EC2 image
         run: |
-          # Sign the image
-          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
+          # Sign the image using digest for consistency
+          cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
       
       - name: Generate SBOM for EC2 image
         run: |
