@@ -29,6 +29,12 @@ jobs:
       contents: read
     
     steps:
+      - name: Debug deployment trigger
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Image tag: ${{ env.IMAGE_TAG }}"
+          
       - name: Checkout code
         uses: actions/checkout@v4
       
