@@ -36,9 +36,7 @@ jobs:
       - name: Test Podinfo application
         run: |
           cd app
-          echo "Running Go tests..."
           go test -v ./...
-          echo "Tests passed"
       
       - name: Login to Amazon ECR
         id: login-ecr
@@ -47,14 +45,9 @@ jobs:
       - name: Build and push Lambda image
         id: build-lambda
         run: |
-          # Build the image
           docker build -t ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} -t ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest ./app
-          
-          # Push the image
           docker push ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }}
           docker push ${{ secrets.ECR_REPOSITORY_LAMBDA }}:latest
-          
-          # Get the image digest
           DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
@@ -62,38 +55,22 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          # Install cosign
           curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
           chmod +x cosign-linux-amd64
           sudo mv cosign-linux-amd64 /usr/local/bin/cosign
-          
-          # Sign the image using digest for consistency
-          echo "Signing Lambda image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}"
           cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
-          echo "Lambda image signed successfully"
       
       - name: Generate SBOM for Lambda image
         run: |
-          # Install syft
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-          
-          # Generate SBOM
           syft ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ env.IMAGE_TAG }} -o spdx-json > lambda-sbom.json
-          
-          # Store SBOM as artifact (not as ECR image)
-          echo "SBOM generated for Lambda image"
       
       - name: Build and push EC2 image
         id: build-ec2
         run: |
-          # Build the image
           docker build -t ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -t ${{ secrets.ECR_REPOSITORY_EC2 }}:latest ./app
-          
-          # Push the image
           docker push ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }}
           docker push ${{ secrets.ECR_REPOSITORY_EC2 }}:latest
-          
-          # Get the image digest
           DIGEST=$(docker inspect ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
@@ -101,18 +78,10 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          # Sign the image using digest for consistency
-          echo "Signing EC2 image: ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}"
           cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
-          echo "EC2 image signed successfully"
       
       - name: Generate SBOM for EC2 image
-        run: |
-          # Generate SBOM
-          syft ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -o spdx-json > ec2-sbom.json
-          
-          # Store SBOM as artifact (not as ECR image)
-          echo "SBOM generated for EC2 image"
+        run: syft ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ env.IMAGE_TAG }} -o spdx-json > ec2-sbom.json
       
       - name: Upload SBOM to ECR
         run: |
@@ -125,24 +94,19 @@ jobs:
             --repository-name "$LAMBDA_REPO_NAME" \
             --image-scanning-configuration scanOnPush=true
       
-      
       - name: Require signatures before deploy (policy gate)
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          echo "Verifying EC2 image signature..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
-          echo "EC2 signature verified"
           
-          echo "Verifying Lambda image signature..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
-          echo "Lambda signature verified"
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4

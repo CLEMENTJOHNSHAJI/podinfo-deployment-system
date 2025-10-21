@@ -23,18 +23,11 @@ jobs:
     name: Deploy to Development
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'))
-    needs: []
     permissions:
       id-token: write
       contents: read
     
     steps:
-      - name: Debug deployment trigger
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Image tag: ${{ env.IMAGE_TAG }}"
-          
       - name: Checkout code
         uses: actions/checkout@v4
       
@@ -71,20 +64,14 @@ jobs:
       
       - name: Deploy Lambda function
         run: |
-          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
-          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG"
+          IMAGE_TAG="${{ env.IMAGE_TAG }}"
           
-          # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
-            echo "Lambda function exists, updating with container image..."
             aws lambda update-function-code \
               --function-name podinfo-lambda \
               --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG
-            # Wait for update to complete
-            echo "Waiting for Lambda function update to complete..."
             aws lambda wait function-updated --function-name podinfo-lambda
           else
-            echo "Lambda function does not exist, creating with container image..."
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
@@ -93,15 +80,9 @@ jobs:
               --timeout 30 \
               --memory-size 512 \
               --environment Variables='{ENVIRONMENT=dev,LOG_LEVEL=INFO}'
-            # Wait for function to be ready
-            echo "Waiting for Lambda function to be ready..."
             aws lambda wait function-active --function-name podinfo-lambda
           fi
           
-          # Verify the deployment
-          echo "Verifying Lambda function deployment..."
-          aws lambda get-function --function-name podinfo-lambda --query 'Configuration.{State:State,LastUpdateStatus:LastUpdateStatus,CodeSize:CodeSize,ImageUri:Code.ImageUri}' --output table
-        
           aws lambda publish-version \
             --function-name podinfo-lambda \
             --description "Deployment $IMAGE_TAG"
@@ -109,16 +90,11 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          # Check if CodeDeploy is available
-          if aws codedeploy help > /dev/null 2>&1; then
-            aws codedeploy create-deployment \
-              --application-name podinfo-lambda-deploy \
-              --deployment-group-name podinfo-lambda-group \
-              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-              --description "Deploy ${{ github.sha }} to Lambda"
-          else
-            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
-          fi
+          aws codedeploy create-deployment \
+            --application-name podinfo-lambda-deploy \
+            --deployment-group-name podinfo-lambda-group \
+            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+            --description "Deploy ${{ env.IMAGE_TAG }} to Lambda"
       
       - name: Deploy EC2 application
         run: |
@@ -169,63 +145,32 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          # Check if CodeDeploy is available
-          if aws codedeploy help > /dev/null 2>&1; then
-            aws codedeploy create-deployment \
-              --application-name podinfo-ec2-deploy \
-              --deployment-group-name podinfo-ec2-group \
-              --deployment-config-name CodeDeployDefault.AllAtOnce \
-              --description "Deploy ${{ github.sha }} to EC2"
-          else
-            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
-          fi
+          aws codedeploy create-deployment \
+            --application-name podinfo-ec2-deploy \
+            --deployment-group-name podinfo-ec2-group \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --description "Deploy ${{ env.IMAGE_TAG }} to EC2"
       
       - name: Wait for deployments
-        run: |
-          echo "Waiting for deployments to complete..."
-          sleep 300
+        run: sleep 300
       
       - name: Run smoke tests
         run: |
-          echo "Running smoke tests..."
-          
-          # Test Lambda endpoint (if API Gateway exists)
           LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?contains(Name, `podinfo`)].ApiEndpoint | [0]' --output text 2>/dev/null || echo "")
           if [ -n "$LAMBDA_URL" ] && [ "$LAMBDA_URL" != "None" ]; then
-            echo "Testing Lambda endpoint: $LAMBDA_URL/healthz"
-            if curl -f -m 10 "$LAMBDA_URL/healthz"; then
-              echo "Lambda health check passed"
-            else
-              echo "Lambda health check failed, but continuing..."
-            fi
-          else
-            echo "API Gateway not found, skipping Lambda endpoint test"
+            curl -f -m 10 "$LAMBDA_URL/healthz" || echo "Lambda health check failed"
           fi
           
-          # Test ALB endpoint (if ALB exists)
           ALB_DNS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `podinfo`)].DNSName | [0]' --output text 2>/dev/null || echo "")
           if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ]; then
-            echo "Testing ALB endpoint: http://$ALB_DNS/healthz"
-            if curl -f -m 10 "http://$ALB_DNS/healthz"; then
-              echo "ALB health check passed"
-            else
-              echo "ALB health check failed, but continuing..."
-            fi
-          else
-            echo "ALB not found, skipping ALB endpoint test"
+            curl -f -m 10 "http://$ALB_DNS/healthz" || echo "ALB health check failed"
           fi
-          
-          echo "Smoke tests completed"
       
       - name: Run synthetic tests
-        run: |
-          # Synthetic test script
-          ./scripts/smoke-tests.sh dev
+        run: ./scripts/smoke-tests.sh dev
       
       - name: Update deployment status
-        run: |
-          echo "Deployment to dev environment completed successfully"
-          echo "Image digest: ${{ env.IMAGE_TAG }}"
+        run: echo "Deployment to dev completed - Image ${{ env.IMAGE_TAG }}"
 
   promote-to-prod:
     name: Promote to Production
@@ -253,62 +198,18 @@ jobs:
           cosign-release: 'v2.2.0'
       
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Get image digests
-        id: get-digests
-        run: |
-          # Get the actual image digests (not just the tag)
-          # The build workflow tags images with commit SHA, we need the actual digest
-          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
-          
-          # Get EC2 image digest
-          EC2_DIGEST=$(aws ecr describe-images \
-            --repository-name podinfo-podinfo \
-            --image-ids imageTag=$IMAGE_TAG \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
-          echo "ec2_digest=$EC2_DIGEST" >> $GITHUB_OUTPUT
-          echo "EC2 Image Digest: $EC2_DIGEST"
-          
-          # Get Lambda image digest
-          LAMBDA_DIGEST=$(aws ecr describe-images \
-            --repository-name podinfo-podinfo-lambda \
-            --image-ids imageTag=$IMAGE_TAG \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
-          echo "lambda_digest=$LAMBDA_DIGEST" >> $GITHUB_OUTPUT
-          echo "Lambda Image Digest: $LAMBDA_DIGEST"
-      
-      # Note: Signature verification is performed in the build workflow's "Require signatures before deploy" step
-      # The deploy workflow only runs if the build workflow (including signature verification) succeeds
-      # This prevents redundant verification and avoids timing issues with signature propagation
-      
-      - name: Verify images are from signed build
-        run: |
-          echo "Images verified as signed in build workflow"
-          echo "EC2 image digest: ${{ steps.get-digests.outputs.ec2_digest }}"
-          echo "Lambda image digest: ${{ steps.get-digests.outputs.lambda_digest }}"
-          echo "Build workflow SHA: ${{ github.event.workflow_run.head_sha }}"
-          echo "Signature verification passed in build workflow - proceeding with deployment"
       
       - name: Deploy Lambda function
         run: |
-          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
-          echo "Deploying Lambda function to PRODUCTION with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG"
+          IMAGE_TAG="${{ env.IMAGE_TAG }}"
           
-          # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
-            echo "Lambda function exists, updating with container image..."
             aws lambda update-function-code \
               --function-name podinfo-lambda \
               --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG
-            # Wait for update to complete
-            echo "Waiting for Lambda function update to complete..."
             aws lambda wait function-updated --function-name podinfo-lambda
           else
-            echo "Lambda function does not exist, creating with container image..."
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
@@ -317,11 +218,9 @@ jobs:
               --timeout 30 \
               --memory-size 512 \
               --environment Variables='{ENVIRONMENT=prod,LOG_LEVEL=INFO}'
-            # Wait for function to be ready
-            echo "Waiting for Lambda function to be ready..."
             aws lambda wait function-active --function-name podinfo-lambda
           fi
-        
+          
           aws lambda publish-version \
             --function-name podinfo-lambda \
             --description "Production deployment $IMAGE_TAG"
@@ -329,16 +228,11 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          # Check if CodeDeploy is available
-          if aws codedeploy help > /dev/null 2>&1; then
-            aws codedeploy create-deployment \
-              --application-name podinfo-lambda-deploy \
-              --deployment-group-name podinfo-lambda-group \
-              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-              --description "Production deploy ${{ github.sha }} to Lambda"
-          else
-            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
-          fi
+          aws codedeploy create-deployment \
+            --application-name podinfo-lambda-deploy \
+            --deployment-group-name podinfo-lambda-group \
+            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+            --description "Production deploy ${{ env.IMAGE_TAG }} to Lambda"
       
       - name: Deploy EC2 application
         run: |
@@ -389,21 +283,14 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          # Check if CodeDeploy is available
-          if aws codedeploy help > /dev/null 2>&1; then
-            aws codedeploy create-deployment \
-              --application-name podinfo-ec2-deploy \
-              --deployment-group-name podinfo-ec2-group \
-              --deployment-config-name CodeDeployDefault.AllAtOnce \
-              --description "Production deploy ${{ github.sha }} to EC2"
-          else
-            echo "CodeDeploy is not available in this AWS CLI installation, skipping..."
-          fi
+          aws codedeploy create-deployment \
+            --application-name podinfo-ec2-deploy \
+            --deployment-group-name podinfo-ec2-group \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --description "Production deploy ${{ env.IMAGE_TAG }} to EC2"
       
       - name: Wait for deployments
-        run: |
-          echo "Waiting for production deployments to complete..."
-          sleep 300
+        run: sleep 300
       
       - name: Run production smoke tests
         run: |
@@ -443,7 +330,4 @@ jobs:
           exit 0
       
       - name: Update production status
-        run: |
-          echo "Production deployment completed successfully"
-          echo "Image digest: ${{ env.IMAGE_TAG }}"
-          echo "Deployment timestamp: $(date -u)"
+        run: echo "Production deployment completed - Image ${{ env.IMAGE_TAG }}"
