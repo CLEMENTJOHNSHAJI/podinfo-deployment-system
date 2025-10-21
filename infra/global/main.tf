@@ -144,8 +144,12 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = local.oidc_audience
           }
           StringLike = {
-            # Restrict to workflow runs from a single repository and branch
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${var.github_branch}"
+            # Allow workflow runs from repository on main branch and any environment
+            # This covers both direct pushes (ref:refs/heads/main) and workflow_run events (environment:*)
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${var.github_branch}",
+              "repo:${var.github_org}/${var.github_repo}:environment:*"
+            ]
           }
         }
       }
