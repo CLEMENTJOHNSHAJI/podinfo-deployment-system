@@ -59,14 +59,15 @@ jobs:
       
       - name: Deploy Lambda function
         run: |
-          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ github.event.workflow_run.head_sha }}"
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG"
           
           # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
             echo "Lambda function exists, updating with container image..."
             aws lambda update-function-code \
               --function-name podinfo-lambda \
-              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG
             # Wait for update to complete
             echo "Waiting for Lambda function update to complete..."
             aws lambda wait function-updated --function-name podinfo-lambda
@@ -75,7 +76,7 @@ jobs:
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
-              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG \
               --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
               --timeout 30 \
               --memory-size 512 \
@@ -91,7 +92,7 @@ jobs:
         
           aws lambda publish-version \
             --function-name podinfo-lambda \
-            --description "Deployment ${{ github.sha }}"
+            --description "Deployment $IMAGE_TAG"
       
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -284,12 +285,15 @@ jobs:
       
       - name: Deploy Lambda function
         run: |
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+          echo "Deploying Lambda function to PRODUCTION with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG"
+          
           # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
             echo "Lambda function exists, updating with container image..."
             aws lambda update-function-code \
               --function-name podinfo-lambda \
-              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+              --image-uri ${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG
             # Wait for update to complete
             echo "Waiting for Lambda function update to complete..."
             aws lambda wait function-updated --function-name podinfo-lambda
@@ -298,7 +302,7 @@ jobs:
             aws lambda create-function \
               --function-name podinfo-lambda \
               --package-type Image \
-              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }} \
+              --code ImageUri=${{ secrets.ECR_REPOSITORY_LAMBDA }}:$IMAGE_TAG \
               --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/podinfo-lambda-execution-role \
               --timeout 30 \
               --memory-size 512 \
@@ -310,7 +314,7 @@ jobs:
         
           aws lambda publish-version \
             --function-name podinfo-lambda \
-            --description "Production deployment ${{ github.sha }}"
+            --description "Production deployment $IMAGE_TAG"
       
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
