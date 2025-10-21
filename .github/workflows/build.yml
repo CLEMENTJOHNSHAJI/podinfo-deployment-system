@@ -52,6 +52,8 @@ jobs:
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
       - name: Sign Lambda image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
           # Install cosign
           curl -O -L "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64"
@@ -59,7 +61,9 @@ jobs:
           sudo mv cosign-linux-amd64 /usr/local/bin/cosign
           
           # Sign the image using digest for consistency
+          echo "Signing Lambda image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}"
           cosign sign --yes ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
+          echo "Lambda image signed successfully"
       
       - name: Generate SBOM for Lambda image
         run: |
@@ -87,9 +91,13 @@ jobs:
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       
       - name: Sign EC2 image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
           # Sign the image using digest for consistency
+          echo "Signing EC2 image: ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}"
           cosign sign --yes ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
+          echo "EC2 image signed successfully"
       
       - name: Generate SBOM for EC2 image
         run: |
@@ -112,15 +120,22 @@ jobs:
       
       
       - name: Require signatures before deploy (policy gate)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
+          echo "Verifying EC2 image signature..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
+          echo "✅ EC2 signature verified"
+          
+          echo "Verifying Lambda image signature..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
+          echo "✅ Lambda signature verified"
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4

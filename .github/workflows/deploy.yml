@@ -270,18 +270,26 @@ jobs:
           echo "Lambda Image Digest: $LAMBDA_DIGEST"
       
       - name: Verify Podinfo image signature
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
+          echo "Verifying EC2 image signature for deploy..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.get-digests.outputs.ec2_digest }}
+          echo "✅ EC2 signature verified for deployment"
       
       - name: Verify Lambda image signature
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
+          echo "Verifying Lambda image signature for deploy..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.get-digests.outputs.lambda_digest }}
+          echo "✅ Lambda signature verified for deployment"
       
       - name: Deploy Lambda function
         run: |
