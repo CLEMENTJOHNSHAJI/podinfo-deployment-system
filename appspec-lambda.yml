@@ -1,0 +1,13 @@
+version: 0.0
+Resources:
+  - podinfo-lambda:
+      Type: AWS::Lambda::Function
+      Properties:
+        Name: "podinfo-lambda"
+        Alias: "live"
+        CurrentVersion: !Ref LambdaVersionToBeDeployed
+        TargetVersion: !Ref LambdaVersionToBeDeployed
+Hooks:
+  - BeforeAllowTraffic: "podinfo-lambda-pre-traffic-hook"
+  - AfterAllowTraffic: "podinfo-lambda-post-traffic-hook"
+
