@@ -33,7 +33,7 @@ type Config struct {
 type Secrets struct {
 	SuperSecretToken string `json:"SUPER_SECRET_TOKEN"`
 	DatabaseURL      string `json:"DATABASE_URL"`
-	APIKey          string `json:"API_KEY"`
+	APIKey           string `json:"API_KEY"`
 }
 
 var (
@@ -78,7 +78,7 @@ func loadSecrets(secretARN string) (*Secrets, error) {
 		return &Secrets{
 			SuperSecretToken: "dev-token-12345",
 			DatabaseURL:      "postgresql://dev:dev@localhost:5432/podinfo",
-			APIKey:          "dev-api-key",
+			APIKey:           "dev-api-key",
 		}, nil
 	}
 
@@ -111,7 +111,7 @@ func correlationIDMiddleware(next http.Handler) http.Handler {
 		if correlationID == "" {
 			correlationID = uuid.New().String()
 		}
-		
+
 		w.Header().Set("X-Correlation-ID", correlationID)
 		ctx := context.WithValue(r.Context(), "correlationID", correlationID)
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -135,7 +135,7 @@ func NewApp() *App {
 		loadedSecrets = &Secrets{
 			SuperSecretToken: "fallback-token",
 			DatabaseURL:      "postgresql://fallback:fallback@localhost:5432/podinfo",
-			APIKey:          "fallback-api-key",
+			APIKey:           "fallback-api-key",
 		}
 	}
 	secrets = *loadedSecrets
@@ -309,8 +309,8 @@ func (a *App) secretHandler(w http.ResponseWriter, r *http.Request) {
 		"correlation_id": correlationID,
 		"secret_status": map[string]interface{}{
 			"super_secret_token_loaded": secrets.SuperSecretToken != "",
-			"database_url_loaded":      secrets.DatabaseURL != "",
-			"api_key_loaded":          secrets.APIKey != "",
+			"database_url_loaded":       secrets.DatabaseURL != "",
+			"api_key_loaded":            secrets.APIKey != "",
 		},
 		"environment": a.config.Environment,
 	}

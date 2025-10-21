@@ -90,11 +90,15 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-lambda-deploy \
-            --deployment-group-name podinfo-lambda-group \
-            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-            --description "Deploy ${{ env.IMAGE_TAG }} to Lambda"
+          if aws codedeploy help >/dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-lambda-deploy \
+              --deployment-group-name podinfo-lambda-group \
+              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+              --description "Deploy ${{ env.IMAGE_TAG }} to Lambda"
+          else
+            echo "CodeDeploy not available, skipping blue/green deployment"
+          fi
       
       - name: Deploy EC2 application
         run: |
@@ -145,11 +149,15 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-ec2-deploy \
-            --deployment-group-name podinfo-ec2-group \
-            --deployment-config-name CodeDeployDefault.AllAtOnce \
-            --description "Deploy ${{ env.IMAGE_TAG }} to EC2"
+          if aws codedeploy help >/dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-ec2-deploy \
+              --deployment-group-name podinfo-ec2-group \
+              --deployment-config-name CodeDeployDefault.AllAtOnce \
+              --description "Deploy ${{ env.IMAGE_TAG }} to EC2"
+          else
+            echo "CodeDeploy not available, skipping blue/green deployment"
+          fi
       
       - name: Wait for deployments
         run: sleep 300
@@ -228,11 +236,15 @@ jobs:
       - name: Deploy Lambda with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-lambda-deploy \
-            --deployment-group-name podinfo-lambda-group \
-            --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
-            --description "Production deploy ${{ env.IMAGE_TAG }} to Lambda"
+          if aws codedeploy help >/dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-lambda-deploy \
+              --deployment-group-name podinfo-lambda-group \
+              --deployment-config-name CodeDeployDefault.LambdaCanary10Percent5Minutes \
+              --description "Production deploy ${{ env.IMAGE_TAG }} to Lambda"
+          else
+            echo "CodeDeploy not available, skipping blue/green deployment"
+          fi
       
       - name: Deploy EC2 application
         run: |
@@ -283,11 +295,15 @@ jobs:
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
         run: |
-          aws codedeploy create-deployment \
-            --application-name podinfo-ec2-deploy \
-            --deployment-group-name podinfo-ec2-group \
-            --deployment-config-name CodeDeployDefault.AllAtOnce \
-            --description "Production deploy ${{ env.IMAGE_TAG }} to EC2"
+          if aws codedeploy help >/dev/null 2>&1; then
+            aws codedeploy create-deployment \
+              --application-name podinfo-ec2-deploy \
+              --deployment-group-name podinfo-ec2-group \
+              --deployment-config-name CodeDeployDefault.AllAtOnce \
+              --description "Production deploy ${{ env.IMAGE_TAG }} to EC2"
+          else
+            echo "CodeDeploy not available, skipping blue/green deployment"
+          fi
       
       - name: Wait for deployments
         run: sleep 300
