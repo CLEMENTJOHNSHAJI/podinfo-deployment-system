@@ -3,9 +3,9 @@
 ## Overview
 The GitHub Actions workflow uses an IAM role (`podinfo-github-actions-role`) to deploy both Lambda and EC2 applications. This document explains the IAM policy configuration and why we use a broad policy instead of resource-specific restrictions.
 
-## Current IAM Policy (Version 9)
+## Current IAM Policy (Version 10)
 
-The role uses a single managed policy: `podinfo-github-actions-policy` (v9)
+The role uses a single managed policy: `podinfo-github-actions-policy` (v10)
 
 ### Key Permissions
 
@@ -64,7 +64,20 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v9)
 }
 ```
 
-#### 4. **IAM PassRole Permission**
+#### 4. **API Gateway Permissions (for Smoke Tests)**
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "apigateway:GET",
+    "apigatewayv2:GetApis",
+    "apigatewayv2:GetApi"
+  ],
+  "Resource": "*"
+}
+```
+
+#### 5. **IAM PassRole Permission**
 ```json
 {
   "Effect": "Allow",
