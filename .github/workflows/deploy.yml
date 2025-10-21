@@ -35,19 +35,31 @@ jobs:
       - name: Get image digests
         id: get-digests
         run: |
-          # Get the image digests from the build workflow outputs
-          # Use the SHA from the workflow that triggered this (the build workflow)
-          echo "ec2_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
-          echo "lambda_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          # Get the actual image digests (not just the tag)
+          # The build workflow tags images with commit SHA, we need the actual digest
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
           
-          # Verify the images exist in ECR
-          echo "Checking if images exist in ECR..."
-          aws ecr describe-images --repository-name podinfo-podinfo --image-ids imageTag=${{ github.event.workflow_run.head_sha }} || echo "EC2 image not found"
-          aws ecr describe-images --repository-name podinfo-podinfo-lambda --image-ids imageTag=${{ github.event.workflow_run.head_sha }} || echo "Lambda image not found"
+          # Get EC2 image digest
+          EC2_DIGEST=$(aws ecr describe-images \
+            --repository-name podinfo-podinfo \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          echo "ec2_digest=$EC2_DIGEST" >> $GITHUB_OUTPUT
+          echo "EC2 Image Digest: $EC2_DIGEST"
+          
+          # Get Lambda image digest
+          LAMBDA_DIGEST=$(aws ecr describe-images \
+            --repository-name podinfo-podinfo-lambda \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          echo "lambda_digest=$LAMBDA_DIGEST" >> $GITHUB_OUTPUT
+          echo "Lambda Image Digest: $LAMBDA_DIGEST"
       
       - name: Deploy Lambda function
         run: |
-          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}"
+          echo "Deploying Lambda function with image: ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ github.event.workflow_run.head_sha }}"
           
           # Check if Lambda function exists
           if aws lambda get-function --function-name podinfo-lambda >/dev/null 2>&1; then
@@ -234,24 +246,41 @@ jobs:
       - name: Get image digests
         id: get-digests
         run: |
-          # Get the image digests from the build workflow outputs
-          # Use the SHA from the workflow that triggered this (the build workflow)
-          echo "ec2_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
-          echo "lambda_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          # Get the actual image digests (not just the tag)
+          # The build workflow tags images with commit SHA, we need the actual digest
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
+          
+          # Get EC2 image digest
+          EC2_DIGEST=$(aws ecr describe-images \
+            --repository-name podinfo-podinfo \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          echo "ec2_digest=$EC2_DIGEST" >> $GITHUB_OUTPUT
+          echo "EC2 Image Digest: $EC2_DIGEST"
+          
+          # Get Lambda image digest
+          LAMBDA_DIGEST=$(aws ecr describe-images \
+            --repository-name podinfo-podinfo-lambda \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          echo "lambda_digest=$LAMBDA_DIGEST" >> $GITHUB_OUTPUT
+          echo "Lambda Image Digest: $LAMBDA_DIGEST"
       
       - name: Verify Podinfo image signature
         run: |
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
-            ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ steps.get-digests.outputs.ec2_digest }}
+            ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.get-digests.outputs.ec2_digest }}
       
       - name: Verify Lambda image signature
         run: |
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
-            ${{ secrets.ECR_REPOSITORY_LAMBDA }}:${{ steps.get-digests.outputs.lambda_digest }}
+            ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.get-digests.outputs.lambda_digest }}
       
       - name: Deploy Lambda function
         run: |
