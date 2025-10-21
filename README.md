@@ -15,7 +15,7 @@ Both targets support:
 - Secrets management with rotation
 - Supply chain security (SBOM, vulnerability scanning)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -63,7 +63,7 @@ terraform init
    terraform apply
    ```
 
-## 🏃 Run
+## Run
 
 ### Development Deployment
 
@@ -92,7 +92,7 @@ terraform apply
 ./scripts/smoke-tests.sh dev
 ```
 
-## 🔄 Promote
+## Promote
 
 ### Development → Production
 
@@ -124,7 +124,7 @@ git push origin main
 aws codedeploy stop-deployment --deployment-id <deployment-id>
 ```
 
-## 🧹 Destroy
+## Destroy
 
 ### Safe Teardown
 
@@ -144,13 +144,13 @@ cd infra
 terraform destroy
 ```
 
-## 📊 Monitoring
+## Monitoring
 
 - **CloudWatch Dashboard**: `https://console.aws.amazon.com/cloudwatch/home#dashboards:name=podinfo-dashboard`
 - **Lambda URL**: Available in Terraform outputs
 - **ALB URL**: Available in Terraform outputs
 
-## 🔧 Configuration
+## Configuration
 
 See `ENVIRONMENT.md` for:
 - Environment variables
@@ -158,7 +158,7 @@ See `ENVIRONMENT.md` for:
 - Version requirements
 - Region configuration
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 .github/workflows/     # CI/CD pipelines
@@ -184,7 +184,7 @@ app/                   # Application source code
 └── Dockerfile         # Container definition
 ```
 
-## 🛡️ Security Features
+## Security Features
 
 - **Image Signing**: Cosign with keyless signing (transparency log: [Rekor](https://rekor.sigstore.dev))
 - **SBOM Generation**: Software Bill of Materials (downloadable from [GitHub Actions artifacts](../../actions))
@@ -195,7 +195,7 @@ app/                   # Application source code
 - **Network Security**: VPC, security groups, ALB
 - **Access Control**: IAM roles with least privilege
 
-### 📦 Build Artifacts
+### Build Artifacts
 
 After each successful build, the following artifacts are available:
 
@@ -217,7 +217,7 @@ After each successful build, the following artifacts are available:
    - SARIF reports uploaded to [Security → Code scanning](../../security/code-scanning)
    - Trivy vulnerability scan results for both images
 
-### ⚠️ HTTPS Configuration
+### HTTPS Configuration
 
 **Important**: The ALB is currently configured for HTTP (port 80) only. For production use with HTTPS:
 
@@ -264,7 +264,7 @@ After each successful build, the following artifacts are available:
 
 The infrastructure supports HTTPS (security group allows port 443), but requires a valid ACM certificate which cannot be auto-provisioned without a registered domain.
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -286,7 +286,7 @@ aws elbv2 describe-target-health --target-group-arn <target-group-arn>
 aws logs tail /aws/lambda/podinfo-lambda --follow
 ```
 
-## 📈 Scaling
+## Scaling
 
 The system supports:
 - **Lambda**: Provisioned concurrency (configurable)
@@ -294,13 +294,13 @@ The system supports:
 - **ALB**: Load balancing across multiple AZs
 - **Monitoring**: CloudWatch alarms and dashboards
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make changes and test
 4. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

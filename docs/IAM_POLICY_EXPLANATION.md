@@ -142,14 +142,14 @@ Instead of restricting by resource ARN, we use:
 
 ### Security Considerations
 
-✅ **Secure Enough Because:**
+**Secure Enough Because:**
 - All resources are in the same AWS account
 - GitHub Actions uses OIDC authentication (no long-lived credentials)
 - Role assumption is limited to the specific GitHub repository
 - Actions are scoped to EC2, Auto Scaling, and Lambda services
 - PassRole is conditioned on the service receiving the role
 
-❌ **NOT Secure If:**
+**NOT Secure If:**
 - Multiple teams/projects share the same AWS account
 - You need strict multi-tenant isolation
 - Compliance requires resource-level restrictions
@@ -167,10 +167,10 @@ For production environments with stricter requirements:
 ## Monitoring and Auditing
 
 The deployment includes:
-- ✅ CloudWatch logging for all deployments
-- ✅ AWS CloudTrail for IAM actions
-- ✅ CloudWatch alarms for failed deployments
-- ✅ Correlation IDs for request tracking
+- CloudWatch logging for all deployments
+- AWS CloudTrail for IAM actions
+- CloudWatch alarms for failed deployments
+- Correlation IDs for request tracking
 
 ## Troubleshooting
 

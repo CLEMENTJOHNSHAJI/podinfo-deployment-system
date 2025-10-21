@@ -12,26 +12,26 @@ Navigate to: **Settings → Branches → Branch protection rules → Add rule**
 
 #### Required Settings:
 
-✅ **Require a pull request before merging**
+**Require a pull request before merging**
 - Require approvals: **1**
 - Dismiss stale pull request approvals when new commits are pushed
 - Require review from Code Owners (optional)
 
-✅ **Require status checks to pass before merging**
+**Require status checks to pass before merging**
 - Require branches to be up to date before merging
 - **Required status checks**:
   - `build-and-sign` (from build.yml workflow)
   - `deploy-dev` (from deploy.yml workflow)
 
-✅ **Require conversation resolution before merging**
+**Require conversation resolution before merging**
 
-✅ **Require signed commits** (recommended)
+**Require signed commits** (recommended)
 
-✅ **Require linear history** (recommended)
+**Require linear history** (recommended)
 
-✅ **Include administrators** (enforce rules for admins too)
+**Include administrators** (enforce rules for admins too)
 
-❌ **Do NOT check**:
+**Do NOT check**:
 - Allow force pushes
 - Allow deletions
 
@@ -47,15 +47,15 @@ Navigate to: **Settings → Environments → New environment**
 
 #### Required Protection Rules:
 
-✅ **Required reviewers**
+**Required reviewers**
 - Add at least **1 reviewer**
 - Reviewers must approve before the `promote-to-prod` job can run
 
-✅ **Wait timer** (optional)
+**Wait timer** (optional)
 - 0 minutes (no wait) OR
 - 5 minutes (cooling period after dev deployment)
 
-✅ **Deployment branches**
+**Deployment branches**
 - Selected branches only: `main`
 
 #### Environment Secrets (if different from repo):
@@ -102,13 +102,13 @@ terraform output ecr_repository_urls
 
 Navigate to: **Settings → Actions → General → Workflow permissions**
 
-✅ **Select**: `Read and write permissions`
+**Select**: `Read and write permissions`
 - Allows workflows to:
   - Push images to GitHub Packages (if used)
   - Create releases
   - Update deployment statuses
 
-✅ **Check**: `Allow GitHub Actions to create and approve pull requests`
+**Check**: `Allow GitHub Actions to create and approve pull requests`
 - Enables automation workflows
 
 ---
@@ -119,15 +119,15 @@ Navigate to: **Settings → Code security and analysis**
 
 ### Recommended Settings:
 
-✅ **Dependency graph**: Enabled
-✅ **Dependabot alerts**: Enabled
-✅ **Dependabot security updates**: Enabled
+**Dependency graph**: Enabled
+**Dependabot alerts**: Enabled
+**Dependabot security updates**: Enabled
 
-✅ **Code scanning**:
+**Code scanning**:
 - GitHub Advanced Security (if available)
 - CodeQL analysis
 
-✅ **Secret scanning**: Enabled
+**Secret scanning**: Enabled
 - Prevents committing AWS keys, tokens, etc.
 
 ---
