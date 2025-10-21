@@ -27,14 +27,14 @@ Both targets support:
 ### Bootstrap
 
 1. **Clone and configure**:
-   ```bash
+```bash
    git clone <your-repo-url>
-   cd podinfo-deployment-system
+cd podinfo-deployment-system
    ./scripts/bootstrap.sh
-   ```
+```
 
 2. **Set GitHub secrets** (see `ENVIRONMENT.md` for complete list):
-   ```bash
+```bash
    # Required secrets
    AWS_ROLE_ARN=arn:aws:iam::ACCOUNT:role/podinfo-github-actions-role
    AWS_REGION=us-west-2
@@ -49,10 +49,16 @@ Both targets support:
    ENABLE_SECRETS_ROTATION=false
    ```
 
-3. **Deploy infrastructure**:
-   ```bash
+3. **Configure GitHub Environment Protection** (Required for prod approval):
+   - Go to repository Settings → Environments → New environment
+   - Create environment named `production`
+   - Enable "Required reviewers" and add yourself
+   - See `docs/GITHUB_SETTINGS.md` for detailed instructions
+
+4. **Deploy infrastructure**:
+```bash
    cd infra
-   terraform init
+terraform init
    terraform plan
    terraform apply
    ```
@@ -94,8 +100,8 @@ terraform apply
    ```bash
    git checkout main
    git merge develop
-   git push origin main
-   ```
+git push origin main
+```
 
 2. **Production deployment** requires:
    - Human approval (GitHub environment protection)
@@ -186,6 +192,53 @@ app/                   # Application source code
 - **Secrets Management**: AWS Secrets Manager with rotation
 - **Network Security**: VPC, security groups, ALB
 - **Access Control**: IAM roles with least privilege
+
+### ⚠️ HTTPS Configuration
+
+**Important**: The ALB is currently configured for HTTP (port 80) only. For production use with HTTPS:
+
+1. **Obtain an ACM Certificate**:
+   ```bash
+   # Request certificate for your domain
+   aws acm request-certificate \
+     --domain-name podinfo.yourdomain.com \
+     --validation-method DNS
+   ```
+
+2. **Add HTTPS Listener** in `infra/ec2/main.tf`:
+   ```hcl
+   resource "aws_lb_listener" "https" {
+     load_balancer_arn = aws_lb.main.arn
+     port              = "443"
+     protocol          = "HTTPS"
+     certificate_arn   = var.acm_certificate_arn
+     
+     default_action {
+       type             = "forward"
+       target_group_arn = aws_lb_target_group.blue.arn
+     }
+   }
+   ```
+
+3. **Redirect HTTP to HTTPS** (recommended):
+   ```hcl
+   resource "aws_lb_listener" "http_redirect" {
+     load_balancer_arn = aws_lb.main.arn
+     port              = "80"
+     protocol          = "HTTP"
+     
+     default_action {
+       type = "redirect"
+       redirect {
+         port        = "443"
+         protocol    = "HTTPS"
+         status_code = "HTTP_301"
+       }
+     }
+   }
+   ```
+
+The infrastructure supports HTTPS (security group allows port 443), but requires a valid ACM certificate which cannot be auto-provisioned without a registered domain.
 
 ## 🚨 Troubleshooting
 

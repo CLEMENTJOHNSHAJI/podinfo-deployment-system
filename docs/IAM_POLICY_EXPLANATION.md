@@ -82,7 +82,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v10)
 {
   "Effect": "Allow",
   "Action": "iam:PassRole",
-  "Resource": "arn:aws:iam::484826611466:role/podinfo-*",
+  "Resource": "arn:aws:iam::123456789012:role/podinfo-*",
   "Condition": {
     "StringEquals": {
       "iam:PassedToService": [
@@ -135,7 +135,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v10)
 
 Instead of restricting by resource ARN, we use:
 
-1. **Account-scoped wildcards**: `Resource: "*"` is limited to our AWS account (484826611466)
+1. **Account-scoped wildcards**: `Resource: "*"` is limited to the AWS account
 2. **Name-based restrictions**: Resources use the `podinfo-*` naming convention
 3. **Service-scoped conditions**: `iam:PassRole` is restricted to specific AWS services
 4. **Action-level restrictions**: Only the minimum required actions are allowed
