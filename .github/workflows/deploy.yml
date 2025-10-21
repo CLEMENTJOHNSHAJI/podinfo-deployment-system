@@ -22,7 +22,7 @@ jobs:
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'))
     needs: []
     permissions:
       id-token: write
