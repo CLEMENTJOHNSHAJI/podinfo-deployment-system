@@ -2,8 +2,12 @@
 .terraform/
 *.tfstate
 *.tfstate.*
-*.tfvars
+*.tfstate.backup
 .terraform.lock.hcl
+
+# Terraform variables (with example exception)
+*.tfvars
+!infra/terraform.tfvars.example
 
 # Terraform provider binaries
 .terraform/providers/
@@ -29,3 +33,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Build artifacts
+app/podinfo
+*.zip
+*.tar.gz
+
+# Debug/test files
+response.json
+current-policy.json
+test-*.md
+debug-*.sh
