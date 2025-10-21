@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-west-2.amazonaws.com
-  IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
   ENABLE_CODEDEPLOY: ${{ secrets.ENABLE_CODEDEPLOY || 'false' }}
 
 jobs:
@@ -36,14 +36,14 @@ jobs:
         id: get-digests
         run: |
           # Get the image digests from the build workflow outputs
-          # The build workflow uses github.sha as the tag
-          echo "ec2_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
-          echo "lambda_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+          # Use the SHA from the workflow that triggered this (the build workflow)
+          echo "ec2_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          echo "lambda_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
           
           # Verify the images exist in ECR
           echo "Checking if images exist in ECR..."
-          aws ecr describe-images --repository-name podinfo-podinfo --image-ids imageTag=${{ github.sha }} || echo "EC2 image not found"
-          aws ecr describe-images --repository-name podinfo-podinfo-lambda --image-ids imageTag=${{ github.sha }} || echo "Lambda image not found"
+          aws ecr describe-images --repository-name podinfo-podinfo --image-ids imageTag=${{ github.event.workflow_run.head_sha }} || echo "EC2 image not found"
+          aws ecr describe-images --repository-name podinfo-podinfo-lambda --image-ids imageTag=${{ github.event.workflow_run.head_sha }} || echo "Lambda image not found"
       
       - name: Deploy Lambda function
         run: |
@@ -235,9 +235,9 @@ jobs:
         id: get-digests
         run: |
           # Get the image digests from the build workflow outputs
-          # For now, we'll use the commit SHA as the tag since that's what the build workflow uses
-          echo "ec2_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
-          echo "lambda_digest=${{ github.sha }}" >> $GITHUB_OUTPUT
+          # Use the SHA from the workflow that triggered this (the build workflow)
+          echo "ec2_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          echo "lambda_digest=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
       
       - name: Verify Podinfo image signature
         run: |
