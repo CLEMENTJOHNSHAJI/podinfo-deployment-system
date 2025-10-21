@@ -36,7 +36,7 @@ aws_region = "$AWS_REGION"
 aws_account_id = "$AWS_ACCOUNT_ID"
 EOF
 
-echo "✅ Created infra/terraform.tfvars with your configuration"
+echo "Created infra/terraform.tfvars with your configuration"
 echo ""
 
 # Create GitHub secrets template
@@ -52,7 +52,7 @@ AWS_REGION = "${AWS_REGION}"
 # Note: The AWS_ROLE_ARN will be created by Terraform
 EOF
 
-echo "✅ Created github-secrets-template.txt"
+echo "Created github-secrets-template.txt"
 echo ""
 
 # Create deployment instructions
@@ -114,7 +114,7 @@ terraform destroy
 \`\`\`
 EOF
 
-echo "✅ Created DEPLOYMENT_INSTRUCTIONS.md"
+echo "Created DEPLOYMENT_INSTRUCTIONS.md"
 echo ""
 
 echo "🎉 Setup Complete!"

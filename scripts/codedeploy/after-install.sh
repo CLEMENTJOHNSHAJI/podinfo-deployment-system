@@ -12,7 +12,7 @@ if [ -f /opt/podinfo/deployment-config.json ]; then
     IMAGE_URI=$(jq -r '.image_uri' /opt/podinfo/deployment-config.json)
     echo "Using image: $IMAGE_URI"
 else
-    echo "⚠️  No deployment config found, using latest image"
+    echo "No deployment config found, using latest image"
     # Fallback to latest
     IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/podinfo-podinfo:latest"
 fi
@@ -28,6 +28,6 @@ docker pull $IMAGE_URI
 # Tag for convenience
 docker tag $IMAGE_URI podinfo:deployed
 
-echo "✅ Application configured and image pulled"
+echo "Application configured and image pulled"
 exit 0
 

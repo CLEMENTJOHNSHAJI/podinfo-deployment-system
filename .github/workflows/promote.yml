@@ -150,7 +150,7 @@ jobs:
             --name live \
             --function-version $VERSION
           
-          echo "✅ Lambda function updated to version $VERSION"
+          echo "Lambda function updated to version $VERSION"
 
       - name: Deploy EC2 application
         run: |
@@ -184,7 +184,7 @@ jobs:
             --auto-scaling-group-name podinfo-asg \
             --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID,Version=$NEW_VERSION
           
-          echo "✅ EC2 application updated to version $NEW_VERSION"
+          echo "EC2 application updated to version $NEW_VERSION"
 
   run-smoke-tests:
     needs: deploy-lambda
@@ -211,7 +211,7 @@ jobs:
           curl -f http://$ALB_DNS/healthz || exit 1
           curl -f http://$ALB_DNS/api/secret || exit 1
           
-          echo "✅ Smoke tests passed"
+          echo "Smoke tests passed"
 
   notify-completion:
     needs: [deploy-lambda, run-smoke-tests]
@@ -225,6 +225,6 @@ jobs:
             echo "Image: ${{ needs.validate-promotion.outputs.image_tag }}"
             echo "Environment: ${{ github.event.inputs.target_environment }}"
           else
-            echo "❌ Deployment to ${{ github.event.inputs.target_environment }} failed!"
+            echo "Deployment to ${{ github.event.inputs.target_environment }} failed!"
             echo "Check the logs for details."
           fi

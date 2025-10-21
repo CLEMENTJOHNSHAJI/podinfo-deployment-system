@@ -17,11 +17,11 @@ docker run -d \
 echo "Waiting for container to start..."
 for i in {1..30}; do
     if docker ps | grep -q podinfo; then
-        echo "✅ Container started successfully"
+        echo "Container started successfully"
         break
     fi
     if [ $i -eq 30 ]; then
-        echo "❌ Container failed to start"
+        echo "Container failed to start"
         docker logs podinfo || true
         exit 1
     fi
@@ -34,8 +34,8 @@ echo "Starting CloudWatch agent..."
   -a fetch-config \
   -m ec2 \
   -c ssm:AmazonCloudWatch-linux \
-  -s || echo "⚠️  CloudWatch agent start failed (non-critical)"
+  -s || echo "CloudWatch agent start failed (non-critical)"
 
-echo "✅ Application started successfully"
+echo "Application started successfully"
 exit 0
 

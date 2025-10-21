@@ -10,18 +10,18 @@ if ! command -v docker &> /dev/null; then
     yum install -y docker
     systemctl start docker
     systemctl enable docker
-    echo "✅ Docker installed"
+    echo "Docker installed"
 else
-    echo "✅ Docker already installed"
+    echo "Docker already installed"
 fi
 
 # Install CloudWatch agent if not present
 if ! command -v /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl &> /dev/null; then
     echo "Installing CloudWatch agent..."
     yum install -y amazon-cloudwatch-agent
-    echo "✅ CloudWatch agent installed"
+    echo "CloudWatch agent installed"
 else
-    echo "✅ CloudWatch agent already installed"
+    echo "CloudWatch agent already installed"
 fi
 
 # Ensure deployment directory exists

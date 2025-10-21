@@ -14,7 +14,7 @@ echo "========================================="
 echo "Environment: $ENVIRONMENT"
 echo "Region: $REGION"
 echo ""
-echo "⚠️  WARNING: This will destroy all resources for the $ENVIRONMENT environment!"
+echo "WARNING: This will destroy all resources for the $ENVIRONMENT environment!"
 echo ""
 read -p "Are you sure you want to continue? (yes/no): " CONFIRM
 
@@ -34,10 +34,10 @@ cd "$(dirname "$0")/../infra" || exit 1
 if [ -f "terraform.tfstate" ] || [ -f ".terraform/terraform.tfstate" ]; then
   echo "Running terraform destroy..."
   terraform destroy -auto-approve -var="environment=$ENVIRONMENT" || {
-    echo "⚠️  Terraform destroy encountered errors, continuing with manual cleanup..."
+    echo "Terraform destroy encountered errors, continuing with manual cleanup..."
   }
 else
-  echo "⚠️  No Terraform state found, skipping terraform destroy"
+  echo "No Terraform state found, skipping terraform destroy"
 fi
 
 cd - > /dev/null
@@ -53,15 +53,15 @@ for REPO in "podinfo-podinfo" "podinfo-podinfo-lambda"; do
       aws ecr batch-delete-image \
         --repository-name "$REPO" \
         --image-ids "$IMAGE_IDS" \
-        --region "$REGION" >/dev/null 2>&1 || echo "⚠️  Could not delete images from $REPO"
+        --region "$REGION" >/dev/null 2>&1 || echo "Could not delete images from $REPO"
     fi
     echo "Deleting repository $REPO..."
     aws ecr delete-repository \
       --repository-name "$REPO" \
       --force \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Repository $REPO might already be deleted"
+      --region "$REGION" 2>/dev/null || echo "Repository $REPO might already be deleted"
   else
-    echo "⚠️  Repository $REPO not found"
+    echo "Repository $REPO not found"
   fi
 done
 
@@ -73,7 +73,7 @@ for APP in "podinfo-lambda-deploy" "podinfo-ec2-deploy"; do
     echo "Deleting CodeDeploy application $APP..."
     aws deploy delete-application \
       --application-name "$APP" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete $APP"
+      --region "$REGION" 2>/dev/null || echo "Could not delete $APP"
   fi
 done
 
@@ -85,7 +85,7 @@ for FUNC in "podinfo-lambda" "podinfo-secret-rotation"; do
     echo "Deleting Lambda function $FUNC..."
     aws lambda delete-function \
       --function-name "$FUNC" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete function $FUNC"
+      --region "$REGION" 2>/dev/null || echo "Could not delete function $FUNC"
   fi
 done
 
@@ -98,7 +98,7 @@ for API_ID in $API_IDS; do
     echo "Deleting API Gateway $API_ID..."
     aws apigatewayv2 delete-api \
       --api-id "$API_ID" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete API $API_ID"
+      --region "$REGION" 2>/dev/null || echo "Could not delete API $API_ID"
   fi
 done
 
@@ -111,7 +111,7 @@ for ALB_ARN in $ALB_ARNS; do
     echo "Deleting Load Balancer $ALB_ARN..."
     aws elbv2 delete-load-balancer \
       --load-balancer-arn "$ALB_ARN" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete ALB"
+      --region "$REGION" 2>/dev/null || echo "Could not delete ALB"
     
     # Wait for ALB deletion
     echo "Waiting for ALB deletion..."
@@ -128,7 +128,7 @@ for TG_ARN in $TG_ARNS; do
     echo "Deleting Target Group $TG_ARN..."
     aws elbv2 delete-target-group \
       --target-group-arn "$TG_ARN" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete Target Group"
+      --region "$REGION" 2>/dev/null || echo "Could not delete Target Group"
   fi
 done
 
@@ -142,7 +142,7 @@ for ASG_NAME in $ASG_NAMES; do
     aws autoscaling delete-auto-scaling-group \
       --auto-scaling-group-name "$ASG_NAME" \
       --force-delete \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete ASG $ASG_NAME"
+      --region "$REGION" 2>/dev/null || echo "Could not delete ASG $ASG_NAME"
   fi
 done
 
@@ -155,7 +155,7 @@ for LT_ID in $LT_IDS; do
     echo "Deleting Launch Template $LT_ID..."
     aws ec2 delete-launch-template \
       --launch-template-id "$LT_ID" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete Launch Template $LT_ID"
+      --region "$REGION" 2>/dev/null || echo "Could not delete Launch Template $LT_ID"
   fi
 done
 
@@ -168,7 +168,7 @@ for LOG_GROUP in $LOG_GROUPS; do
     echo "Deleting Log Group $LOG_GROUP..."
     aws logs delete-log-group \
       --log-group-name "$LOG_GROUP" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete Log Group $LOG_GROUP"
+      --region "$REGION" 2>/dev/null || echo "Could not delete Log Group $LOG_GROUP"
   fi
 done
 
@@ -182,7 +182,7 @@ for SECRET in $SECRETS; do
     aws secretsmanager delete-secret \
       --secret-id "$SECRET" \
       --recovery-window-in-days 7 \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete secret $SECRET"
+      --region "$REGION" 2>/dev/null || echo "Could not delete secret $SECRET"
   fi
 done
 
@@ -231,7 +231,7 @@ for VPC_ID in $VPC_IDS; do
     
     # Delete VPC
     echo "  Deleting VPC $VPC_ID..."
-    aws ec2 delete-vpc --vpc-id "$VPC_ID" --region "$REGION" 2>/dev/null || echo "⚠️  Could not delete VPC $VPC_ID (may have dependencies)"
+    aws ec2 delete-vpc --vpc-id "$VPC_ID" --region "$REGION" 2>/dev/null || echo "Could not delete VPC $VPC_ID (may have dependencies)"
   fi
 done
 
@@ -244,13 +244,13 @@ for EIP_ALLOC_ID in $EIP_ALLOC_IDS; do
     echo "Releasing EIP $EIP_ALLOC_ID..."
     aws ec2 release-address \
       --allocation-id "$EIP_ALLOC_ID" \
-      --region "$REGION" 2>/dev/null || echo "⚠️  Could not release EIP $EIP_ALLOC_ID"
+      --region "$REGION" 2>/dev/null || echo "Could not release EIP $EIP_ALLOC_ID"
   fi
 done
 
 echo ""
 echo "========================================="
-echo "✅ Teardown completed!"
+echo "Teardown completed!"
 echo "========================================="
 echo ""
 echo "Note: Some resources may have a deletion delay (NAT Gateways, Secrets)"

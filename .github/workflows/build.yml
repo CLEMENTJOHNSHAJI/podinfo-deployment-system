@@ -38,7 +38,7 @@ jobs:
           cd app
           echo "Running Go tests..."
           go test -v ./...
-          echo "✅ Tests passed"
+          echo "Tests passed"
       
       - name: Login to Amazon ECR
         id: login-ecr
@@ -135,14 +135,14 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.build-ec2.outputs.digest }}
-          echo "✅ EC2 signature verified"
+          echo "EC2 signature verified"
           
           echo "Verifying Lambda image signature..."
           cosign verify \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
             ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.build-lambda.outputs.digest }}
-          echo "✅ Lambda signature verified"
+          echo "Lambda signature verified"
       
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4

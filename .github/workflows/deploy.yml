@@ -188,12 +188,12 @@ jobs:
           if [ -n "$LAMBDA_URL" ] && [ "$LAMBDA_URL" != "None" ]; then
             echo "Testing Lambda endpoint: $LAMBDA_URL/healthz"
             if curl -f -m 10 "$LAMBDA_URL/healthz"; then
-              echo "✅ Lambda health check passed"
+              echo "Lambda health check passed"
             else
-              echo "⚠️  Lambda health check failed, but continuing..."
+              echo "Lambda health check failed, but continuing..."
             fi
           else
-            echo "⚠️  API Gateway not found, skipping Lambda endpoint test"
+            echo "API Gateway not found, skipping Lambda endpoint test"
           fi
           
           # Test ALB endpoint (if ALB exists)
@@ -201,12 +201,12 @@ jobs:
           if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ]; then
             echo "Testing ALB endpoint: http://$ALB_DNS/healthz"
             if curl -f -m 10 "http://$ALB_DNS/healthz"; then
-              echo "✅ ALB health check passed"
+              echo "ALB health check passed"
             else
-              echo "⚠️  ALB health check failed, but continuing..."
+              echo "ALB health check failed, but continuing..."
             fi
           else
-            echo "⚠️  ALB not found, skipping ALB endpoint test"
+            echo "ALB not found, skipping ALB endpoint test"
           fi
           
           echo "Smoke tests completed"
@@ -281,7 +281,7 @@ jobs:
       
       - name: Verify images are from signed build
         run: |
-          echo "✅ Images verified as signed in build workflow"
+          echo "Images verified as signed in build workflow"
           echo "EC2 image digest: ${{ steps.get-digests.outputs.ec2_digest }}"
           echo "Lambda image digest: ${{ steps.get-digests.outputs.lambda_digest }}"
           echo "Build workflow SHA: ${{ github.event.workflow_run.head_sha }}"
@@ -403,37 +403,37 @@ jobs:
         run: |
           set +e # Don't exit on error, handle failures gracefully
           
-          echo "🔍 Running production smoke tests..."
+          echo "Running production smoke tests..."
           
           # Test Lambda endpoint (pattern match for any podinfo API)
           LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?contains(Name, `podinfo`)].ApiEndpoint | [0]' --output text 2>/dev/null || echo "")
           if [ -z "$LAMBDA_URL" ] || [ "$LAMBDA_URL" == "None" ]; then
-              echo "⚠️  Could not find Lambda API Gateway URL - infrastructure may not be fully deployed yet"
+              echo "Could not find Lambda API Gateway URL - infrastructure may not be fully deployed yet"
               echo "This is expected if Lambda deployment is still in progress"
           else
               echo "Testing Lambda URL: $LAMBDA_URL"
               if curl -sf "$LAMBDA_URL/healthz" > /dev/null 2>&1; then
-                  echo "✅ Lambda health check passed"
+                  echo "Lambda health check passed"
               else
-                  echo "⚠️  Lambda health check failed - deployment may still be in progress"
+                  echo "Lambda health check failed - deployment may still be in progress"
               fi
           fi
           
           # Test ALB endpoint (pattern match for any podinfo ALB)
           ALB_DNS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `podinfo`)].DNSName | [0]' --output text 2>/dev/null || echo "")
           if [ -z "$ALB_DNS" ] || [ "$ALB_DNS" == "None" ]; then
-              echo "⚠️  Could not find ALB DNS name - infrastructure may not be fully deployed yet"
+              echo "Could not find ALB DNS name - infrastructure may not be fully deployed yet"
               echo "This is expected if EC2 deployment is still in progress"
           else
               echo "Testing ALB DNS: $ALB_DNS"
               if curl -sf "http://$ALB_DNS/healthz" > /dev/null 2>&1; then
-                  echo "✅ ALB health check passed"
+                  echo "ALB health check passed"
               else
-                  echo "⚠️  ALB health check failed - deployment may still be in progress"
+                  echo "ALB health check failed - deployment may still be in progress"
               fi
           fi
           
-          echo "✅ Production smoke tests completed (warnings are non-critical)"
+          echo "Production smoke tests completed (warnings are non-critical)"
           exit 0
       
       - name: Update production status

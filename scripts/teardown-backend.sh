@@ -14,8 +14,8 @@ KMS_ALIAS="alias/podinfo-terraform-state"
 echo "========================================="
 echo "Terraform Backend Teardown"
 echo "========================================="
-echo "⚠️  WARNING: This will destroy Terraform state storage!"
-echo "⚠️  Make sure all environments are destroyed first!"
+echo "WARNING: This will destroy Terraform state storage!"
+echo "Make sure all environments are destroyed first!"
 echo ""
 echo "Resources to be deleted:"
 echo "  - S3 Bucket: $BUCKET_NAME"
@@ -37,7 +37,7 @@ echo "Starting backend teardown..."
 echo ""
 echo "Deleting S3 bucket contents..."
 if aws s3 ls "s3://$BUCKET_NAME" 2>/dev/null; then
-  aws s3 rm "s3://$BUCKET_NAME" --recursive --region "$REGION" || echo "⚠️  Could not delete bucket contents"
+  aws s3 rm "s3://$BUCKET_NAME" --recursive --region "$REGION" || echo "Could not delete bucket contents"
   
   # Delete all versions
   echo "Deleting all object versions..."
@@ -65,10 +65,10 @@ if aws s3 ls "s3://$BUCKET_NAME" 2>/dev/null; then
   
   # Delete bucket
   echo "Deleting S3 bucket..."
-  aws s3api delete-bucket --bucket "$BUCKET_NAME" --region "$REGION" || echo "⚠️  Could not delete bucket"
-  echo "✅ S3 bucket deleted"
+  aws s3api delete-bucket --bucket "$BUCKET_NAME" --region "$REGION" || echo "Could not delete bucket"
+  echo "S3 bucket deleted"
 else
-  echo "⚠️  S3 bucket not found"
+  echo "S3 bucket not found"
 fi
 
 # Delete log bucket
@@ -76,10 +76,10 @@ echo ""
 echo "Deleting S3 log bucket..."
 if aws s3 ls "s3://$LOG_BUCKET" 2>/dev/null; then
   aws s3 rm "s3://$LOG_BUCKET" --recursive --region "$REGION" || true
-  aws s3api delete-bucket --bucket "$LOG_BUCKET" --region "$REGION" || echo "⚠️  Could not delete log bucket"
-  echo "✅ S3 log bucket deleted"
+  aws s3api delete-bucket --bucket "$LOG_BUCKET" --region "$REGION" || echo "Could not delete log bucket"
+  echo "S3 log bucket deleted"
 else
-  echo "⚠️  S3 log bucket not found"
+  echo "S3 log bucket not found"
 fi
 
 # Delete DynamoDB table
@@ -87,9 +87,9 @@ echo ""
 echo "Deleting DynamoDB table..."
 if aws dynamodb describe-table --table-name "$DYNAMODB_TABLE" --region "$REGION" >/dev/null 2>&1; then
   aws dynamodb delete-table --table-name "$DYNAMODB_TABLE" --region "$REGION"
-  echo "✅ DynamoDB table deleted"
+  echo "DynamoDB table deleted"
 else
-  echo "⚠️  DynamoDB table not found"
+  echo "DynamoDB table not found"
 fi
 
 # Schedule KMS key deletion
@@ -98,21 +98,21 @@ echo "Scheduling KMS key deletion..."
 KMS_KEY_ID=$(aws kms describe-key --key-id "$KMS_ALIAS" --region "$REGION" --query 'KeyMetadata.KeyId' --output text 2>/dev/null || echo "")
 if [ -n "$KMS_KEY_ID" ]; then
   # Delete alias first
-  aws kms delete-alias --alias-name "$KMS_ALIAS" --region "$REGION" 2>/dev/null || echo "⚠️  Alias might not exist"
+  aws kms delete-alias --alias-name "$KMS_ALIAS" --region "$REGION" 2>/dev/null || echo "Alias might not exist"
   
   # Schedule key deletion (minimum 7 days)
   aws kms schedule-key-deletion \
     --key-id "$KMS_KEY_ID" \
     --pending-window-in-days 7 \
     --region "$REGION"
-  echo "✅ KMS key scheduled for deletion (7 days)"
+  echo "KMS key scheduled for deletion (7 days)"
 else
-  echo "⚠️  KMS key not found"
+  echo "KMS key not found"
 fi
 
 echo ""
 echo "========================================="
-echo "✅ Backend teardown completed!"
+echo "Backend teardown completed!"
 echo "========================================="
 echo ""
 echo "Note: KMS key will be deleted in 7 days"

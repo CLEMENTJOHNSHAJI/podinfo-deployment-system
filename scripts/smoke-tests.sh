@@ -12,7 +12,7 @@ echo "Running synthetic tests for $ENVIRONMENT environment..."
 echo "Testing Lambda endpoint..."
 LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?contains(Name, `podinfo`)].ApiEndpoint | [0]' --output text 2>/dev/null || echo "")
 if [ -z "$LAMBDA_URL" ] || [ "$LAMBDA_URL" == "None" ]; then
-    echo "⚠️  Could not find Lambda API Gateway URL - infrastructure may not be fully deployed yet"
+    echo "Could not find Lambda API Gateway URL - infrastructure may not be fully deployed yet"
     echo "Skipping Lambda tests..."
     LAMBDA_URL=""
 fi
@@ -23,17 +23,17 @@ if [ -n "$LAMBDA_URL" ]; then
     # Test health endpoint
     echo "Testing Lambda health endpoint..."
     if curl -f -m 10 "$LAMBDA_URL/healthz"; then
-        echo "✅ Lambda health check passed"
+        echo "Lambda health check passed"
     else
-        echo "⚠️  Lambda health check failed"
+        echo "Lambda health check failed"
     fi
     
     # Test info endpoint
     echo "Testing Lambda info endpoint..."
     if curl -f -m 10 "$LAMBDA_URL/info"; then
-        echo "✅ Lambda info endpoint passed"
+        echo "Lambda info endpoint passed"
     else
-        echo "⚠️  Lambda info endpoint failed"
+        echo "Lambda info endpoint failed"
     fi
 fi
 
@@ -41,7 +41,7 @@ fi
 echo "Testing ALB endpoint..."
 ALB_DNS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `podinfo`)].DNSName | [0]' --output text 2>/dev/null || echo "")
 if [ -z "$ALB_DNS" ] || [ "$ALB_DNS" == "None" ]; then
-    echo "⚠️  Could not find ALB DNS name - infrastructure may not be fully deployed yet"
+    echo "Could not find ALB DNS name - infrastructure may not be fully deployed yet"
     echo "Skipping ALB tests..."
     ALB_DNS=""
 fi
@@ -52,17 +52,17 @@ if [ -n "$ALB_DNS" ]; then
     # Test ALB health endpoint
     echo "Testing ALB health endpoint..."
     if curl -f -m 10 "http://$ALB_DNS/healthz"; then
-        echo "✅ ALB health check passed"
+        echo "ALB health check passed"
     else
-        echo "⚠️  ALB health check failed"
+        echo "ALB health check failed"
     fi
     
     # Test ALB info endpoint
     echo "Testing ALB info endpoint..."
     if curl -f -m 10 "http://$ALB_DNS/info"; then
-        echo "✅ ALB info endpoint passed"
+        echo "ALB info endpoint passed"
     else
-        echo "⚠️  ALB info endpoint failed"
+        echo "ALB info endpoint failed"
     fi
 fi
 
@@ -70,19 +70,19 @@ fi
 echo "Testing metrics endpoints..."
 if [ -n "$LAMBDA_URL" ]; then
     if curl -f -m 10 "$LAMBDA_URL/metrics"; then
-        echo "✅ Lambda metrics endpoint passed"
+        echo "Lambda metrics endpoint passed"
     else
-        echo "⚠️  Lambda metrics endpoint failed (non-critical)"
+        echo "Lambda metrics endpoint failed (non-critical)"
     fi
 fi
 
 if [ -n "$ALB_DNS" ]; then
     if curl -f -m 10 "http://$ALB_DNS/metrics"; then
-        echo "✅ ALB metrics endpoint passed"
+        echo "ALB metrics endpoint passed"
     else
-        echo "⚠️  ALB metrics endpoint failed (non-critical)"
+        echo "ALB metrics endpoint failed (non-critical)"
     fi
 fi
 
-echo "✅ Synthetic tests completed for $ENVIRONMENT environment!"
+echo "Synthetic tests completed for $ENVIRONMENT environment!"
 exit 0  # Always exit successfully since we handle failures gracefully
