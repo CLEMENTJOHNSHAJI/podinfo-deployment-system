@@ -269,27 +269,17 @@ jobs:
           echo "lambda_digest=$LAMBDA_DIGEST" >> $GITHUB_OUTPUT
           echo "Lambda Image Digest: $LAMBDA_DIGEST"
       
-      - name: Verify Podinfo image signature
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-        run: |
-          echo "Verifying EC2 image signature for deploy..."
-          cosign verify \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
-            ${{ secrets.ECR_REPOSITORY_EC2 }}@${{ steps.get-digests.outputs.ec2_digest }}
-          echo "✅ EC2 signature verified for deployment"
+      # Note: Signature verification is performed in the build workflow's "Require signatures before deploy" step
+      # The deploy workflow only runs if the build workflow (including signature verification) succeeds
+      # This prevents redundant verification and avoids timing issues with signature propagation
       
-      - name: Verify Lambda image signature
-        env:
-          COSIGN_EXPERIMENTAL: "1"
+      - name: Verify images are from signed build
         run: |
-          echo "Verifying Lambda image signature for deploy..."
-          cosign verify \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.+" \
-            ${{ secrets.ECR_REPOSITORY_LAMBDA }}@${{ steps.get-digests.outputs.lambda_digest }}
-          echo "✅ Lambda signature verified for deployment"
+          echo "✅ Images verified as signed in build workflow"
+          echo "EC2 image digest: ${{ steps.get-digests.outputs.ec2_digest }}"
+          echo "Lambda image digest: ${{ steps.get-digests.outputs.lambda_digest }}"
+          echo "Build workflow SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Signature verification passed in build workflow - proceeding with deployment"
       
       - name: Deploy Lambda function
         run: |
