@@ -3,13 +3,37 @@
 ## Overview
 The GitHub Actions workflow uses an IAM role (`podinfo-github-actions-role`) to deploy both Lambda and EC2 applications. This document explains the IAM policy configuration and why we use a broad policy instead of resource-specific restrictions.
 
-## Current IAM Policy (Version 8)
+## Current IAM Policy (Version 9)
 
-The role uses a single managed policy: `podinfo-github-actions-policy` (v8)
+The role uses a single managed policy: `podinfo-github-actions-policy` (v9)
 
 ### Key Permissions
 
-#### 1. **EC2 Launch Template Permissions**
+#### 1. **ECR Permissions (including Image Scanning)**
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "ecr:GetAuthorizationToken",
+    "ecr:BatchCheckLayerAvailability",
+    "ecr:GetDownloadUrlForLayer",
+    "ecr:BatchGetImage",
+    "ecr:PutImage",
+    "ecr:InitiateLayerUpload",
+    "ecr:UploadLayerPart",
+    "ecr:CompleteLayerUpload",
+    "ecr:DescribeRepositories",
+    "ecr:ListImages",
+    "ecr:DescribeImages",
+    "ecr:PutImageScanningConfiguration",
+    "ecr:StartImageScan",
+    "ecr:DescribeImageScanFindings"
+  ],
+  "Resource": "*"
+}
+```
+
+#### 2. **EC2 Launch Template Permissions**
 ```json
 {
   "Effect": "Allow",
@@ -26,7 +50,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v8)
 }
 ```
 
-#### 2. **Auto Scaling Permissions**
+#### 3. **Auto Scaling Permissions**
 ```json
 {
   "Effect": "Allow",
@@ -40,7 +64,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v8)
 }
 ```
 
-#### 3. **IAM PassRole Permission**
+#### 4. **IAM PassRole Permission**
 ```json
 {
   "Effect": "Allow",
