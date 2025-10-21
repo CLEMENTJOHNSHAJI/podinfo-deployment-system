@@ -186,12 +186,36 @@ app/                   # Application source code
 
 ## 🛡️ Security Features
 
-- **Image Signing**: Cosign with keyless signing
-- **SBOM Generation**: Software Bill of Materials
-- **Vulnerability Scanning**: Trivy security scans
+- **Image Signing**: Cosign with keyless signing (transparency log: [Rekor](https://rekor.sigstore.dev))
+- **SBOM Generation**: Software Bill of Materials (downloadable from [GitHub Actions artifacts](../../actions))
+- **Vulnerability Scanning**: Trivy security scans (SARIF reports in [Security tab](../../security/code-scanning))
+- **Signatures**: Keyless signatures stored in Sigstore Rekor transparency log
+- **Attestations**: Build provenance via OIDC tokens from GitHub Actions
 - **Secrets Management**: AWS Secrets Manager with rotation
 - **Network Security**: VPC, security groups, ALB
 - **Access Control**: IAM roles with least privilege
+
+### 📦 Build Artifacts
+
+After each successful build, the following artifacts are available:
+
+1. **Container Images**: Stored in Amazon ECR
+   - `podinfo-podinfo:${COMMIT_SHA}` (EC2)
+   - `podinfo-podinfo-lambda:${COMMIT_SHA}` (Lambda)
+
+2. **SBOM (Software Bill of Materials)**: 
+   - Navigate to [Actions](../../actions) → Select latest build → Download `sbom-artifacts`
+   - Format: SPDX JSON
+   - Files: `lambda-sbom.json`, `ec2-sbom.json`
+
+3. **Signatures & Attestations**:
+   - Signatures stored in [Sigstore Rekor](https://rekor.sigstore.dev) transparency log
+   - Verify with: `cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com ...`
+   - See `.github/workflows/build.yml` for verification examples
+
+4. **Security Scans**:
+   - SARIF reports uploaded to [Security → Code scanning](../../security/code-scanning)
+   - Trivy vulnerability scan results for both images
 
 ### ⚠️ HTTPS Configuration
 

@@ -40,7 +40,7 @@ locals {
   }
   
   health_paths = {
-    readiness = "/readyz"
+    readiness = "/healthz"
     liveness  = "/healthz"
     metrics   = "/metrics"
   }

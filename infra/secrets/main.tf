@@ -10,8 +10,8 @@ terraform {
 
 # Create the main application secret
 resource "aws_secretsmanager_secret" "app_secret" {
-  name                    = "${var.name_prefix}-app-secret"
-  description             = "Application secret for Podinfo"
+  name                    = "/dockyard/SUPER_SECRET_TOKEN"
+  description             = "Application secret for Podinfo (super secret token)"
   recovery_window_in_days = 7
 
   tags = {

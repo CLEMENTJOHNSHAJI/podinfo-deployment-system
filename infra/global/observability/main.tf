@@ -31,7 +31,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           markdown = "# Podinfo Multi-Target Deployment Dashboard\n**Environment:** ${var.environment} | **Region:** ${data.aws_region.current.name} | **Account:** ${data.aws_caller_identity.current.account_id}"
         }
       },
-      # Lambda Metrics
+      # API Gateway Metrics
       {
         type   = "metric"
         x      = 0
@@ -40,17 +40,39 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/Lambda", "Invocations", "FunctionName", "${var.name_prefix}-lambda"],
-            ["AWS/Lambda", "Errors", "FunctionName", "${var.name_prefix}-lambda"],
-            ["AWS/Lambda", "Duration", "FunctionName", "${var.name_prefix}-lambda"],
-            ["AWS/Lambda", "Throttles", "FunctionName", "${var.name_prefix}-lambda"]
+            ["AWS/ApiGateway", "Count", "ApiName", "podinfo-api"],
+            ["AWS/ApiGateway", "Latency", "ApiName", "podinfo-api", { stat = "Average" }],
+            ["AWS/ApiGateway", "5XXError", "ApiName", "podinfo-api"],
+            ["AWS/ApiGateway", "4XXError", "ApiName", "podinfo-api"]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
-          title   = "Lambda Metrics"
+          title   = "API Gateway Metrics (Request Count, Latency, 5xx Rate)"
           period  = 300
-          stat    = "Sum"
+        }
+      },
+      # Lambda Metrics with Percentiles
+      {
+        type   = "metric"
+        x      = 12
+        y      = 2
+        width  = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "Invocations", "FunctionName", "${var.name_prefix}-lambda", { stat = "Sum" }],
+            ["AWS/Lambda", "Errors", "FunctionName", "${var.name_prefix}-lambda", { stat = "Sum" }],
+            ["AWS/Lambda", "Duration", "FunctionName", "${var.name_prefix}-lambda", { stat = "p50", label = "Duration p50" }],
+            ["...", { stat = "p90", label = "Duration p90" }],
+            ["...", { stat = "p99", label = "Duration p99" }],
+            ["AWS/Lambda", "Throttles", "FunctionName", "${var.name_prefix}-lambda", { stat = "Sum" }]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = data.aws_region.current.name
+          title   = "Lambda Metrics (Duration Percentiles, Errors, Throttles)"
+          period  = 300
         }
       },
       # ALB Metrics
@@ -75,7 +97,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           stat    = "Sum"
         }
       },
-      # EC2 Metrics
+      # EC2 Metrics (CPU and Memory)
       {
         type   = "metric"
         x      = 0
@@ -84,16 +106,16 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/EC2", "CPUUtilization", "InstanceId", "i-*"],
-            ["AWS/EC2", "NetworkIn", "InstanceId", "i-*"],
-            ["AWS/EC2", "NetworkOut", "InstanceId", "i-*"]
+            ["AWS/EC2", "CPUUtilization", "InstanceId", "i-*", { stat = "Average" }],
+            ["CWAgent", "mem_used_percent", "InstanceId", "i-*", { stat = "Average", label = "Memory Used %" }],
+            ["AWS/EC2", "NetworkIn", "InstanceId", "i-*", { stat = "Average" }],
+            ["AWS/EC2", "NetworkOut", "InstanceId", "i-*", { stat = "Average" }]
           ]
           view    = "timeSeries"
           stacked = false
           region  = data.aws_region.current.name
-          title   = "EC2 Metrics"
+          title   = "EC2 Metrics (CPU and Memory)"
           period  = 300
-          stat    = "Average"
         }
       },
       # Application Health
