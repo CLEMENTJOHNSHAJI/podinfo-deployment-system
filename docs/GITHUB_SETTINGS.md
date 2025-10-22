@@ -77,6 +77,8 @@ Navigate to: **Settings → Secrets and variables → Actions → New repository
 | `AWS_ROLE_ARN` | GitHub Actions IAM Role ARN | `arn:aws:iam::123456789012:role/podinfo-github-actions-role` |
 | `ECR_REPOSITORY_LAMBDA` | Lambda ECR Repository URL | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo-lambda` |
 | `ECR_REPOSITORY_EC2` | EC2 ECR Repository URL | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo` |
+| `EC2_AMI_ID` | AMI ID for EC2 instances | `ami-0c55b159cbfafe1f0` (Amazon Linux 2023) |
+| `EC2_SECURITY_GROUP_ID` | Security Group ID for EC2 | `sg-xxxxxxxxxxxxxxxxx` |
 | `ENABLE_CODEDEPLOY` | Enable CodeDeploy deployments | `true` |
 
 ### How to Get Secret Values:
@@ -87,6 +89,19 @@ aws sts get-caller-identity --query Account --output text
 
 # Get AWS Region (from your Terraform vars)
 echo "us-west-2"
+
+# Get EC2 AMI ID (Amazon Linux 2023 in us-west-2)
+aws ec2 describe-images \
+  --owners amazon \
+  --filters "Name=name,Values=al2023-ami-2023*x86_64" \
+  --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
+  --output text
+
+# Get Security Group ID (from Terraform output or AWS Console)
+aws ec2 describe-security-groups \
+  --filters "Name=group-name,Values=podinfo-*" \
+  --query 'SecurityGroups[0].GroupId' \
+  --output text
 
 # Get IAM Role ARN (after Terraform apply)
 cd infra

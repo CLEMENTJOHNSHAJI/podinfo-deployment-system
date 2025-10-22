@@ -138,7 +138,7 @@ jobs:
           # Create a new Launch Template with updated user data
           NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
             --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=ami-0e6af742d565ff61c,InstanceType=t3.micro,SecurityGroupIds=sg-0c0ae6c0c58040f61" \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=${{ secrets.EC2_AMI_ID }},InstanceType=t3.micro,SecurityGroupIds=${{ secrets.EC2_SECURITY_GROUP_ID }}" \
             --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
           # Update Auto Scaling Group to use new Launch Template
@@ -284,7 +284,7 @@ jobs:
           # Create a new Launch Template with updated user data
           NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
             --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=ami-0e6af742d565ff61c,InstanceType=t3.micro,SecurityGroupIds=sg-0c0ae6c0c58040f61" \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=${{ secrets.EC2_AMI_ID }},InstanceType=t3.micro,SecurityGroupIds=${{ secrets.EC2_SECURITY_GROUP_ID }}" \
             --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
           # Update Auto Scaling Group to use new Launch Template

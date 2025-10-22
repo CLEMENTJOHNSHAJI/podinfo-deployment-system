@@ -107,7 +107,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v10)
     "autoscaling:UpdateAutoScalingGroup"
   ],
   "Resource": [
-    "arn:aws:ec2:<region>:<account-id>:launch-template/lt-035efe33d94fc0aaf",
+    "arn:aws:ec2:<region>:<account-id>:launch-template/lt-*",
     "arn:aws:autoscaling:<region>:<account-id>:autoScalingGroup:*:autoScalingGroupName/*"
   ]
 }
@@ -116,7 +116,7 @@ The role uses a single managed policy: `podinfo-github-actions-policy` (v10)
 ### Problems with Resource-Specific Restrictions
 
 #### 1. **Launch Template IDs Change**
-- Each deployment creates a **new Launch Template** with a unique ID (e.g., `lt-035efe33d94fc0aaf`)
+- Each deployment creates a **new Launch Template** with a unique ID (e.g., `lt-xxxxxxxxxxxxxxxxx`)
 - The workflow uses timestamped names: `podinfo-github-actions-<timestamp>`
 - Hardcoding a specific Launch Template ID would require:
   - Updating the IAM policy before every deployment

@@ -41,6 +41,8 @@ cd podinfo-deployment-system
    AWS_ACCOUNT_ID=123456789012
    ECR_REPOSITORY_LAMBDA=ACCOUNT.dkr.ecr.REGION.amazonaws.com/podinfo-podinfo-lambda
    ECR_REPOSITORY_EC2=ACCOUNT.dkr.ecr.REGION.amazonaws.com/podinfo-podinfo
+   EC2_AMI_ID=ami-XXXXXXXXXXXXXXXXX
+   EC2_SECURITY_GROUP_ID=sg-XXXXXXXXXXXXXXXXX
    REPO_OWNER=your-github-username
    REPO_NAME=podinfo-deployment-system
    

@@ -56,6 +56,8 @@ Set these in your GitHub repository settings under "Secrets and variables" → "
 | `AWS_ROLE_ARN` | IAM role for GitHub Actions | `arn:aws:iam::123456789012:role/podinfo-github-actions-role` |
 | `AWS_REGION` | AWS region for deployment | `us-west-2` |
 | `AWS_ACCOUNT_ID` | AWS account ID | `123456789012` |
+| `EC2_AMI_ID` | AMI ID for EC2 instances | `ami-0c55b159cbfafe1f0` |
+| `EC2_SECURITY_GROUP_ID` | Security Group ID for EC2 | `sg-xxxxxxxxxxxxxxxxx` |
 | `ECR_REPOSITORY_LAMBDA` | ECR repository for Lambda images | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo-lambda` |
 | `ECR_REPOSITORY_EC2` | ECR repository for EC2 images | `123456789012.dkr.ecr.us-west-2.amazonaws.com/podinfo-podinfo` |
 | `REPO_OWNER` | GitHub repository owner | `your-github-username` |
