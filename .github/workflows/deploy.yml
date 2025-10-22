@@ -132,13 +132,25 @@ jobs:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
           
-          # Encode user data to base64
+          # Auto-discover AMI and Security Group if secrets not set
+          EC2_AMI_ID="${{ secrets.EC2_AMI_ID }}"
+          EC2_SECURITY_GROUP_ID="${{ secrets.EC2_SECURITY_GROUP_ID }}"
+          
+          if [ -z "$EC2_AMI_ID" ]; then
+            EC2_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=al2023-ami-2023*x86_64" --query 'Images|sort_by(@,&CreationDate)|[-1].ImageId' --output text)
+            echo "Auto-discovered AMI: $EC2_AMI_ID"
+          fi
+          
+          if [ -z "$EC2_SECURITY_GROUP_ID" ]; then
+            EC2_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=podinfo-*" --query 'SecurityGroups[0].GroupId' --output text)
+            echo "Auto-discovered SG: $EC2_SECURITY_GROUP_ID"
+          fi
+          
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          # Create a new Launch Template with updated user data
           NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
             --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=${{ secrets.EC2_AMI_ID }},InstanceType=t3.micro,SecurityGroupIds=${{ secrets.EC2_SECURITY_GROUP_ID }}" \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=$EC2_AMI_ID,InstanceType=t3.micro,SecurityGroupIds=$EC2_SECURITY_GROUP_ID" \
             --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
           # Update Auto Scaling Group to use new Launch Template
@@ -278,13 +290,25 @@ jobs:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
           
-          # Encode user data to base64
+          # Auto-discover AMI and Security Group if secrets not set
+          EC2_AMI_ID="${{ secrets.EC2_AMI_ID }}"
+          EC2_SECURITY_GROUP_ID="${{ secrets.EC2_SECURITY_GROUP_ID }}"
+          
+          if [ -z "$EC2_AMI_ID" ]; then
+            EC2_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=al2023-ami-2023*x86_64" --query 'Images|sort_by(@,&CreationDate)|[-1].ImageId' --output text)
+            echo "Auto-discovered AMI: $EC2_AMI_ID"
+          fi
+          
+          if [ -z "$EC2_SECURITY_GROUP_ID" ]; then
+            EC2_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=podinfo-*" --query 'SecurityGroups[0].GroupId' --output text)
+            echo "Auto-discovered SG: $EC2_SECURITY_GROUP_ID"
+          fi
+          
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          # Create a new Launch Template with updated user data
           NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
             --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=${{ secrets.EC2_AMI_ID }},InstanceType=t3.micro,SecurityGroupIds=${{ secrets.EC2_SECURITY_GROUP_ID }}" \
+            --launch-template-data "UserData=$USER_DATA_B64,ImageId=$EC2_AMI_ID,InstanceType=t3.micro,SecurityGroupIds=$EC2_SECURITY_GROUP_ID" \
             --query 'LaunchTemplate.LaunchTemplateId' --output text)
           
           # Update Auto Scaling Group to use new Launch Template
