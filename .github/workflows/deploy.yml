@@ -40,8 +40,6 @@ jobs:
       - name: Get image digests
         id: get-digests
         run: |
-          # Get the actual image digests (not just the tag)
-          # The build workflow tags images with commit SHA, we need the actual digest
           IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
           
           # Get EC2 image digest
@@ -334,39 +332,37 @@ jobs:
       
       - name: Run production smoke tests
         run: |
-          set +e # Don't exit on error, handle failures gracefully
+          set +e
           
           echo "Running production smoke tests..."
           
-          # Test Lambda endpoint (pattern match for any podinfo API)
+          # Test Lambda endpoint
           LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?contains(Name, `podinfo`)].ApiEndpoint | [0]' --output text 2>/dev/null || echo "")
           if [ -z "$LAMBDA_URL" ] || [ "$LAMBDA_URL" == "None" ]; then
-              echo "Could not find Lambda API Gateway URL - infrastructure may not be fully deployed yet"
-              echo "This is expected if Lambda deployment is still in progress"
+              echo "Lambda API Gateway not found - deployment may be in progress"
           else
               echo "Testing Lambda URL: $LAMBDA_URL"
               if curl -sf "$LAMBDA_URL/healthz" > /dev/null 2>&1; then
                   echo "Lambda health check passed"
               else
-                  echo "Lambda health check failed - deployment may still be in progress"
+                  echo "Lambda health check failed"
               fi
           fi
           
-          # Test ALB endpoint (pattern match for any podinfo ALB)
+          # Test ALB endpoint
           ALB_DNS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `podinfo`)].DNSName | [0]' --output text 2>/dev/null || echo "")
           if [ -z "$ALB_DNS" ] || [ "$ALB_DNS" == "None" ]; then
-              echo "Could not find ALB DNS name - infrastructure may not be fully deployed yet"
-              echo "This is expected if EC2 deployment is still in progress"
+              echo "ALB not found - deployment may be in progress"
           else
               echo "Testing ALB DNS: $ALB_DNS"
               if curl -sf "http://$ALB_DNS/healthz" > /dev/null 2>&1; then
                   echo "ALB health check passed"
               else
-                  echo "ALB health check failed - deployment may still be in progress"
+                  echo "ALB health check failed"
               fi
           fi
           
-          echo "Production smoke tests completed (warnings are non-critical)"
+          echo "Production smoke tests completed"
           exit 0
       
       - name: Update production status

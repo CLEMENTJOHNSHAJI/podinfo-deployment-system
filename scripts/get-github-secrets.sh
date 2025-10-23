@@ -12,7 +12,7 @@ echo ""
 
 echo "Getting AWS Account ID..."
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-echo "✅ AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID"
+echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID"
 echo ""
 
 echo "Getting latest Amazon Linux 2023 AMI..."
@@ -22,7 +22,7 @@ EC2_AMI_ID=$(aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
   --output text \
   --region $AWS_REGION)
-echo "✅ EC2_AMI_ID=$EC2_AMI_ID"
+echo "EC2_AMI_ID=$EC2_AMI_ID"
 echo ""
 
 echo "Getting Security Group ID..."
@@ -33,31 +33,29 @@ EC2_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
   --region $AWS_REGION 2>/dev/null || echo "")
 
 if [ -z "$EC2_SECURITY_GROUP_ID" ] || [ "$EC2_SECURITY_GROUP_ID" == "None" ]; then
-  echo "⚠️  EC2_SECURITY_GROUP_ID not found via filter"
-  echo "   Getting from Terraform output..."
+  echo "EC2_SECURITY_GROUP_ID not found via filter, getting from Terraform output..."
   cd infra
   EC2_SECURITY_GROUP_ID=$(terraform output -raw ec2_security_group_id 2>/dev/null || echo "")
   cd ..
 fi
 
 if [ -n "$EC2_SECURITY_GROUP_ID" ] && [ "$EC2_SECURITY_GROUP_ID" != "None" ]; then
-  echo "✅ EC2_SECURITY_GROUP_ID=$EC2_SECURITY_GROUP_ID"
+  echo "EC2_SECURITY_GROUP_ID=$EC2_SECURITY_GROUP_ID"
 else
-  echo "❌ EC2_SECURITY_GROUP_ID not found"
-  echo "   Please check AWS Console or Terraform state"
+  echo "EC2_SECURITY_GROUP_ID not found - Please check AWS Console or Terraform state"
 fi
 echo ""
 
 echo "Getting ECR Repository URLs..."
 ECR_REPOSITORY_LAMBDA="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/podinfo-podinfo-lambda"
 ECR_REPOSITORY_EC2="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/podinfo-podinfo"
-echo "✅ ECR_REPOSITORY_LAMBDA=$ECR_REPOSITORY_LAMBDA"
-echo "✅ ECR_REPOSITORY_EC2=$ECR_REPOSITORY_EC2"
+echo "ECR_REPOSITORY_LAMBDA=$ECR_REPOSITORY_LAMBDA"
+echo "ECR_REPOSITORY_EC2=$ECR_REPOSITORY_EC2"
 echo ""
 
 echo "Getting IAM Role ARN..."
 AWS_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/podinfo-github-actions-role"
-echo "✅ AWS_ROLE_ARN=$AWS_ROLE_ARN"
+echo "AWS_ROLE_ARN=$AWS_ROLE_ARN"
 echo ""
 
 echo "========================================="
@@ -115,5 +113,6 @@ true
 EOF
 
 echo ""
-echo "✅ Done!"
+echo "Done!"
+
 
