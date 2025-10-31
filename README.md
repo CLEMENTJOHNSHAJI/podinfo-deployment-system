@@ -1,6 +1,6 @@
 # Podinfo Multi-Target Deployment System
 
-A production-ready, secure deployment system for the Podinfo application across multiple AWS targets (Lambda and EC2) with blue/green deployments, image signing, and comprehensive monitoring.
+A production ready, secure deployment system for the Podinfo application across multiple AWS targets (Lambda and EC2) with blue/green deployments, image signing, and comprehensive monitoring.
 
 ## 🏗️ Architecture
 
