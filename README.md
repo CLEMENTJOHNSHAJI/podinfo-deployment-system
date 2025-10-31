@@ -149,7 +149,7 @@ terraform destroy
 ## Monitoring
 
 - **CloudWatch Dashboard**: `https://console.aws.amazon.com/cloudwatch/home#dashboards:name=podinfo-dashboard`
-- **Lambda URL**: Available in Terraform outputs
+- **Lambda URL**: Available in Terraform output
 - **ALB URL**: Available in Terraform outputs
 
 ## Configuration
