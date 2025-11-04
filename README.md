@@ -112,7 +112,7 @@ git push origin main
 
 3. **Monitor promotion**:
    - Check GitHub Actions for deployment status
-   - Review CloudWatch dashboards
+   - Review CloudWatch dashboard
    - Validate both Lambda and EC2 endpoints
 
 ### Rollback
