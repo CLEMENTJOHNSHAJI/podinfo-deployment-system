@@ -100,8 +100,9 @@ jobs:
       
       - name: Deploy EC2 application
         run: |
-          # Get the latest Auto Scaling Group instances
+          # Get the target Auto Scaling Group and its Launch Template
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
+          LT_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)
           
           # Create user data script
           cat > user_data.sh << 'EOF'
@@ -130,31 +131,19 @@ jobs:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
           
-          # Auto-discover AMI and Security Group if secrets not set
-          EC2_AMI_ID="${{ secrets.EC2_AMI_ID }}"
-          EC2_SECURITY_GROUP_ID="${{ secrets.EC2_SECURITY_GROUP_ID }}"
-          
-          if [ -z "$EC2_AMI_ID" ]; then
-            EC2_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=al2023-ami-2023*x86_64" --query 'Images|sort_by(@,&CreationDate)|[-1].ImageId' --output text)
-            echo "Auto-discovered AMI: $EC2_AMI_ID"
-          fi
-          
-          if [ -z "$EC2_SECURITY_GROUP_ID" ]; then
-            EC2_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=podinfo-*" --query 'SecurityGroups[0].GroupId' --output text)
-            echo "Auto-discovered SG: $EC2_SECURITY_GROUP_ID"
-          fi
-          
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
-            --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=$EC2_AMI_ID,InstanceType=t3.micro,SecurityGroupIds=$EC2_SECURITY_GROUP_ID" \
-            --query 'LaunchTemplate.LaunchTemplateId' --output text)
+          # Create a new launch template VERSION from the existing template, overriding only UserData
+          NEW_VERSION=$(aws ec2 create-launch-template-version \
+            --launch-template-id "$LT_ID" \
+            --source-version '$Latest' \
+            --launch-template-data "UserData=$USER_DATA_B64" \
+            --query 'LaunchTemplateVersion.VersionNumber' --output text)
           
           # Update Auto Scaling Group to use new Launch Template
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --launch-template LaunchTemplateId=$NEW_LAUNCH_TEMPLATE_ID,Version='$Latest'
+            --launch-template LaunchTemplateId=$LT_ID,Version=$NEW_VERSION
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
@@ -258,8 +247,9 @@ jobs:
       
       - name: Deploy EC2 application
         run: |
-          # Get the latest Auto Scaling Group instances
+          # Get the target Auto Scaling Group and its Launch Template
           ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query 'AutoScalingGroups[?contains(AutoScalingGroupName, `podinfo`)].AutoScalingGroupName' --output text)
+          LT_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names "$ASG_NAME" --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)
           
           # Create user data script
           cat > user_data.sh << 'EOF'
@@ -288,31 +278,19 @@ jobs:
           /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
           EOF
           
-          # Auto-discover AMI and Security Group if secrets not set
-          EC2_AMI_ID="${{ secrets.EC2_AMI_ID }}"
-          EC2_SECURITY_GROUP_ID="${{ secrets.EC2_SECURITY_GROUP_ID }}"
-          
-          if [ -z "$EC2_AMI_ID" ]; then
-            EC2_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=al2023-ami-2023*x86_64" --query 'Images|sort_by(@,&CreationDate)|[-1].ImageId' --output text)
-            echo "Auto-discovered AMI: $EC2_AMI_ID"
-          fi
-          
-          if [ -z "$EC2_SECURITY_GROUP_ID" ]; then
-            EC2_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=podinfo-*" --query 'SecurityGroups[0].GroupId' --output text)
-            echo "Auto-discovered SG: $EC2_SECURITY_GROUP_ID"
-          fi
-          
           USER_DATA_B64=$(base64 -w 0 user_data.sh)
           
-          NEW_LAUNCH_TEMPLATE_ID=$(aws ec2 create-launch-template \
-            --launch-template-name podinfo-github-actions-$(date +%s) \
-            --launch-template-data "UserData=$USER_DATA_B64,ImageId=$EC2_AMI_ID,InstanceType=t3.micro,SecurityGroupIds=$EC2_SECURITY_GROUP_ID" \
-            --query 'LaunchTemplate.LaunchTemplateId' --output text)
+          # Create a new launch template VERSION from the existing template, overriding only UserData
+          NEW_VERSION=$(aws ec2 create-launch-template-version \
+            --launch-template-id "$LT_ID" \
+            --source-version '$Latest' \
+            --launch-template-data "UserData=$USER_DATA_B64" \
+            --query 'LaunchTemplateVersion.VersionNumber' --output text)
           
           # Update Auto Scaling Group to use new Launch Template
           aws autoscaling update-auto-scaling-group \
             --auto-scaling-group-name $ASG_NAME \
-            --launch-template LaunchTemplateId=$NEW_LAUNCH_TEMPLATE_ID,Version='$Latest'
+            --launch-template LaunchTemplateId=$LT_ID,Version=$NEW_VERSION
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
