@@ -57,6 +57,30 @@ resource "aws_ecr_repository" "repositories" {
   })
 }
 
+# Allow AWS Lambda to pull images from ECR repositories
+resource "aws_ecr_repository_policy" "lambda_pull" {
+  for_each   = aws_ecr_repository.repositories
+  repository = each.value.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowLambdaPull"
+        Effect   = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+      }
+    ]
+  })
+}
+
 # ECR Lifecycle Policy
 resource "aws_ecr_lifecycle_policy" "repositories" {
   for_each = aws_ecr_repository.repositories
@@ -247,12 +271,14 @@ resource "aws_iam_policy" "github_actions" {
           "ec2:DescribeInstances",
           "ec2:DescribeInstanceStatus",
           "ec2:DescribeSecurityGroups",
+          "ec2:DescribeImages",
           "ec2:DescribeSubnets",
           "ec2:DescribeVpcs",
           "ec2:DescribeLaunchTemplates",
           "ec2:DescribeLaunchTemplateVersions",
           "ec2:CreateLaunchTemplate",
           "ec2:CreateLaunchTemplateVersion",
+          "ec2:RunInstances",
           "autoscaling:DescribeAutoScalingGroups",
           "autoscaling:UpdateAutoScalingGroup",
           "autoscaling:DescribeLaunchConfigurations",

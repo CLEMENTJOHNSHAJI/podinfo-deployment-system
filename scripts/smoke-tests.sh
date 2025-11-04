@@ -3,6 +3,7 @@ set +e
 
 ENVIRONMENT=${1:-dev}
 echo "Running synthetic tests for $ENVIRONMENT environment..."
+LAMBDA_STAGE="$ENVIRONMENT"
 
 LAMBDA_URL=$(aws apigatewayv2 get-apis --query 'Items[?contains(Name, `podinfo`)].ApiEndpoint | [0]' --output text 2>/dev/null || echo "")
 if [ -z "$LAMBDA_URL" ] || [ "$LAMBDA_URL" == "None" ]; then
@@ -11,10 +12,10 @@ if [ -z "$LAMBDA_URL" ] || [ "$LAMBDA_URL" == "None" ]; then
 fi
 
 if [ -n "$LAMBDA_URL" ]; then
-    echo "Testing Lambda: $LAMBDA_URL"
-    curl -f -m 10 "$LAMBDA_URL/healthz" && echo "Lambda health: PASS" || echo "Lambda health: FAIL"
-    curl -f -m 10 "$LAMBDA_URL/info" && echo "Lambda info: PASS" || echo "Lambda info: FAIL"
-    curl -f -m 10 "$LAMBDA_URL/metrics" && echo "Lambda metrics: PASS" || echo "Lambda metrics: FAIL (non-critical)"
+    echo "Testing Lambda: $LAMBDA_URL/$LAMBDA_STAGE"
+    curl -f -m 10 "$LAMBDA_URL/$LAMBDA_STAGE/healthz" && echo "Lambda health: PASS" || echo "Lambda health: FAIL"
+    curl -f -m 10 "$LAMBDA_URL/$LAMBDA_STAGE/info" && echo "Lambda info: PASS" || echo "Lambda info: FAIL"
+    curl -f -m 10 "$LAMBDA_URL/$LAMBDA_STAGE/metrics" && echo "Lambda metrics: PASS" || echo "Lambda metrics: FAIL (non-critical)"
 fi
 
 ALB_DNS=$(aws elbv2 describe-load-balancers --query 'LoadBalancers[?contains(LoadBalancerName, `podinfo`)].DNSName | [0]' --output text 2>/dev/null || echo "")
