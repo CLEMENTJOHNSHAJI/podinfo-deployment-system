@@ -163,28 +163,36 @@ jobs:
             --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' \
             --output text)
           
-          # Create new launch template version with updated image
+          # Create new launch template version overriding only UserData
+          cat > user_data.sh << 'EOT'
+          #!/bin/bash
+          yum update -y
+          yum install -y docker amazon-cloudwatch-agent
+          systemctl start docker
+          systemctl enable docker
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ needs.validate-promotion.outputs.image_tag }}
+          docker stop podinfo || true
+          docker rm podinfo || true
+          docker run -d --name podinfo -p 8080:8080 \
+            -e ENVIRONMENT=${{ github.event.inputs.target_environment }} \
+            ${{ secrets.ECR_REPOSITORY_EC2 }}:${{ needs.validate-promotion.outputs.image_tag }}
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:AmazonCloudWatch-linux -s
+          EOT
+
+          USER_DATA_B64=$(base64 -w 0 user_data.sh)
+
           NEW_VERSION=$(aws ec2 create-launch-template-version \
             --launch-template-id $LAUNCH_TEMPLATE_ID \
             --version-description "Promoted from ${{ needs.validate-promotion.outputs.source_env }} to $TARGET_ENV" \
-            --user-data "#!/bin/bash
-          # Update application with new image
-          docker pull ${{ secrets.ECR_REPOSITORY_EC2 }}:$IMAGE_TAG
-          docker stop podinfo || true
-          docker rm podinfo || true
-          docker run -d --name podinfo \
-            -p 8080:8080 \
-            -e ENVIRONMENT=$TARGET_ENV \
-            -e SECRET_ARN=${{ secrets.SECRET_ARN }} \
-            ${{ secrets.ECR_REPOSITORY_EC2 }}:$IMAGE_TAG" \
+            --launch-template-data "UserData=$USER_DATA_B64" \
             --query 'LaunchTemplateVersion.VersionNumber' --output text)
-          
-          # Update auto scaling group to use new version
-          aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name podinfo-asg \
-            --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ID,Version=$NEW_VERSION
-          
-          echo "EC2 application updated to version $NEW_VERSION"
+
+          # Set new version as default and start instance refresh
+          aws ec2 modify-launch-template --launch-template-id $LAUNCH_TEMPLATE_ID --default-version $NEW_VERSION
+          aws autoscaling start-instance-refresh --auto-scaling-group-name podinfo-asg --strategy Rolling --preferences MinHealthyPercentage=100,InstanceWarmup=60,SkipMatching=true
+
+          echo "EC2 instance refresh started with LT version $NEW_VERSION"
 
   run-smoke-tests:
     needs: deploy-lambda
