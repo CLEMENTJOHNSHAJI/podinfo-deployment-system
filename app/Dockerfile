@@ -32,6 +32,15 @@ RUN addgroup -g 1001 -S podinfo && \
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata curl
 
+# Install AWS Lambda Web Adapter (enables HTTP server on Lambda)
+RUN mkdir -p /opt \
+  && curl -L -o /opt/bootstrap "https://github.com/awslabs/aws-lambda-web-adapter/releases/latest/download/aws-lambda-adapter" \
+  && chmod +x /opt/bootstrap
+
+# Configure adapter defaults (safe outside Lambda)
+ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/bootstrap
+ENV PORT=8080
+
 # Copy binary from builder stage
 COPY --from=builder /app/podinfo /usr/local/bin/podinfo
 
