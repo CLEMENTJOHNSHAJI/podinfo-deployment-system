@@ -37,11 +37,14 @@ locals {
       Action = [
         "ec2:CreateLaunchTemplateVersion",
         "ec2:ModifyLaunchTemplate",
+        "ec2:RunInstances",
         "ec2:DescribeLaunchTemplates",
         "ec2:DescribeLaunchTemplateVersions",
         "ec2:GetLaunchTemplateData"
       ]
-      Resource = ["*"]
+      Resource = [
+        "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:launch-template/*"
+      ]
     },
     {
       Sid = "AllowAutoScalingUpdate"
@@ -53,7 +56,9 @@ locals {
         "autoscaling:StartInstanceRefresh",
         "autoscaling:DescribeInstanceRefreshes"
       ]
-      Resource = ["*"]
+      Resource = [
+        "arn:aws:autoscaling:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:autoScalingGroup:*:autoScalingGroupName/podinfo-*"
+      ]
     }
   ]
 

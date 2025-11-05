@@ -19,3 +19,9 @@ variable "enable_rotation" {
   type        = bool
   default     = true
 }
+
+variable "instance_role_arn" {
+  description = "ARN of the EC2 instance role referenced by the Launch Template "
+  type = string
+  default = ""
+}

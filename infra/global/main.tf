@@ -276,19 +276,13 @@ resource "aws_iam_policy" "github_actions" {
           "ec2:DescribeVpcs",
           "ec2:DescribeLaunchTemplates",
           "ec2:DescribeLaunchTemplateVersions",
-          "ec2:CreateLaunchTemplate",
-          "ec2:CreateLaunchTemplateVersion",
-          "ec2:RunInstances",
           "autoscaling:DescribeAutoScalingGroups",
-          "autoscaling:UpdateAutoScalingGroup",
+          "autoscaling:DescribeInstanceRefreshes",
           "autoscaling:DescribeLaunchConfigurations",
           "autoscaling:DescribeScalingActivities",
           "elasticloadbalancing:DescribeLoadBalancers",
           "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:ModifyTargetGroup",
-          "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:DeregisterTargets"
+          "elasticloadbalancing:DescribeTargetHealth"
         ]
         Resource = "*"
       },
