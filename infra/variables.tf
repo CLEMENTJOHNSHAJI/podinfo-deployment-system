@@ -108,3 +108,11 @@ variable "lambda_timeout" {
   default     = 30
 }
 
+
+# EC2 instance role ARN used by Launch Template (for iam:PassRole in CI)
+variable "instance_role_arn" {
+  description = "ARN of the EC2 instance role referenced by the Launch Template (forwarded to the global module)"
+  type        = string
+  default     = ""
+}
+
