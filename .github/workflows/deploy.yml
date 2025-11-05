@@ -167,11 +167,42 @@ jobs:
             --launch-template-id "$LT_ID" \
             --default-version $NEW_VERSION
 
-          # Start an Instance Refresh to roll out the new user data
-          aws autoscaling start-instance-refresh \
+          # If an Instance Refresh is already in progress, wait for it to finish
+          set +e
+          EXISTING_STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG_NAME" --query 'InstanceRefreshes[0].Status' --output text 2>/dev/null)
+          set -e
+          if [ "$EXISTING_STATUS" = "InProgress" ]; then
+            echo "Existing Instance Refresh in progress. Waiting to complete..."
+            for i in {1..120}; do
+              STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG_NAME" --query 'InstanceRefreshes[0].Status' --output text)
+              echo "Current refresh status: $STATUS"
+              [ "$STATUS" != "InProgress" ] && break
+              sleep 30
+            done
+          fi
+
+          # Start a new Instance Refresh to roll out the new user data
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
             --auto-scaling-group-name "$ASG_NAME" \
             --strategy Rolling \
-            --preferences MinHealthyPercentage=100,InstanceWarmup=60,SkipMatching=true
+            --preferences MinHealthyPercentage=100,InstanceWarmup=60,SkipMatching=true \
+            --query 'InstanceRefreshId' --output text)
+          echo "Started Instance Refresh: $REFRESH_ID"
+
+          # Wait for the new Instance Refresh to complete
+          for i in {1..240}; do
+            STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG_NAME" --query 'InstanceRefreshes[?InstanceRefreshId==`'"$REFRESH_ID"'`].Status | [0]' --output text)
+            echo "Refresh $REFRESH_ID status: $STATUS"
+            if [ "$STATUS" = "Successful" ]; then
+              echo "Instance Refresh completed successfully"
+              break
+            fi
+            if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "Cancelling" ]; then
+              echo "Instance Refresh $REFRESH_ID ended with status: $STATUS"
+              exit 1
+            fi
+            sleep 30
+          done
       
       - name: Deploy EC2 with CodeDeploy
         if: env.ENABLE_CODEDEPLOY == 'true'
