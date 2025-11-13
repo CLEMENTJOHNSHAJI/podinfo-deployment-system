@@ -94,7 +94,6 @@ terraform apply
 ./scripts/smoke-tests.sh dev
 ```
 
-## Promote
 
 ### Development → Production
 
